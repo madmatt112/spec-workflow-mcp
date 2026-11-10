@@ -10,6 +10,7 @@ import {
   setOpinionStatus,
   listOpenWaits,
   listWaitsForView,
+  listWaitsForWire,
   expireWait,
   openDriveCrashWait,
   DRIVE_CRASH_QUESTION,
@@ -100,6 +101,81 @@ describe('createWait and the round trip', () => {
     await answerWait(record.id, { q: 'acme' }, 'operator');
     expect(await listOpenWaits()).toEqual([]);
     expect((await listWaitsForView()).map((w) => w.id)).toEqual([record.id]);
+  });
+});
+
+describe('createWait stores the ruling evidence (design C1, Requirement 2 AC 1)', () => {
+  it('writes detail and commits when both are given, and both read back', async () => {
+    const record = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 3', free: true }],
+      detail: '## Worker report\n\nfixed it',
+      commits: ['abc1234', 'def5678'],
+    });
+
+    expect(record.detail).toBe('## Worker report\n\nfixed it');
+    expect(record.commits).toEqual(['abc1234', 'def5678']);
+
+    const read = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(read.detail).toBe('## Worker report\n\nfixed it');
+    expect(read.commits).toEqual(['abc1234', 'def5678']);
+  });
+
+  it('stores no commits key when commits is an empty array', async () => {
+    const record = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 3', free: true }],
+      commits: [],
+    });
+
+    expect('commits' in record).toBe(false);
+
+    const read = (await readWait(record.id)) as ControllerWaitRecord;
+    expect('commits' in (read as object)).toBe(false);
+  });
+
+  it('stores no detail or commits key when neither is given (regression guard, holds at base)', async () => {
+    const record = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 3', free: true }],
+    });
+
+    expect('detail' in record).toBe(false);
+    expect('commits' in record).toBe(false);
+  });
+});
+
+describe('listWaitsForWire strips commits and specDir (design C1, Requirement 2 AC 12)', () => {
+  it('returns the wait with detail, and with no commits or specDir', async () => {
+    const record = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 3', free: true }],
+      detail: '## Worker report\n\nfixed it',
+      commits: ['abc1234'],
+    });
+
+    const wire = await listWaitsForWire();
+    const found = wire.find((w) => w.id === record.id);
+
+    expect(found?.detail).toBe('## Worker report\n\nfixed it');
+    expect(found && 'commits' in found).toBe(false);
+    expect(found && 'specDir' in found).toBe(false);
   });
 });
 
