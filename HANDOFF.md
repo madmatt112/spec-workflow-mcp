@@ -192,6 +192,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-09 | dashboard-ruling-view | design | v2 | approved | 2 rounds |
 | 2026-11-09 | dashboard-ruling-view | tasks | v2 | approved | 2 rounds |
 | 2026-11-10 | dashboard-ruling-view | implementation | tasks 10/13 | design-defect | task 11: implementer reported REQUIRED for an off-list file — src/dashboard/shell/__tests__/ruling-view.test.ts — task 11's own success check `grep -rn AnswerSheet src e2e` hits this task-10 author test's prose comments (lines ~313/321, citing "AnswerSheet.tsx:254-257"); the file is absent from task 11's File: list, so no implementer edit can clear this per the agent-rules.md root-walking-scrub rule — add it to tasks.md's File: list and the comment can be reworded.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md |
+| 2026-11-10 | dashboard-ruling-view | implementation | tasks 13/13 | complete | PR #215 |
 
 ## Current state — 2026-08-04
 
@@ -1617,7 +1618,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 13/13, implemented 2026-11-10 |
 | Implemented | 2026-11-10 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/215 |
 | Coverage | logCoverage 13/13; reviewCoverage 13/13; TDD 10 task(s): assertion-red 5, structural-red 5, vacuous 0, inconclusive 0 |
 | Deferrals | 1 added by this spec, 44 open in all |
 | Verifier-skipped | task 13 (gate-only review, retro P6/P15) |
