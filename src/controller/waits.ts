@@ -125,8 +125,10 @@ export async function createWait(input: CreateWaitInput): Promise<ControllerWait
 
 /**
  * Answer a wait: store the answers keyed by question id (`state: answered`),
- * then — for every kind but `retro-plan` — render the gate receipt and append
- * the `note` ledger row. A `retro-plan` wait only stores the record; T6 writes
+ * then — for every kind but `retro-plan` — render the gate or ruling receipt
+ * and append the `note` ledger row. An optional trailing `note` (design C4)
+ * is never stored on the record; it only reaches the receipt and the ledger
+ * row. A `retro-plan` wait only stores the record; T6 writes
  * `retrospective-plan.md` from the answers. Returns the record, or `undefined`
  * when the id is unknown.
  */
@@ -134,6 +136,7 @@ export async function answerWait(
   id: string,
   answers: Record<string, string>,
   by: string,
+  note?: string,
 ): Promise<ControllerWaitRecord | undefined> {
   return enqueueWaitWrite(id, async () => {
     const record = (await readWait(id)) as ControllerWaitRecord | undefined;
@@ -150,9 +153,11 @@ export async function answerWait(
 
     if (record.kind !== 'retro-plan') {
       if (record.kind === 'gate-a' || record.kind === 'gate-b') {
-        await renderQuestionsMd(record);
+        await renderQuestionsMd(record, note);
+      } else if (record.kind === 'escalation' || record.kind === 'error') {
+        await renderRulingSection(record, note);
       }
-      await appendNote(record, by);
+      await appendNote(record, by, note);
     }
 
     waitEvents.emit('change', record);
@@ -257,13 +262,19 @@ function gateHeading(kind: WaitKind): string {
   return kind === 'gate-a' ? 'Gate A' : 'Gate B';
 }
 
+/** Append a trailing `Notes: <note>` line when `note` is sent (design C4). */
+function withNotesLine(section: string, note?: string): string {
+  if (!note) return section;
+  return section.replace(/\n$/, '') + `\nNotes: ${note}\n`;
+}
+
 /**
  * One gate section: the heading, then per question its text, its options (when
- * it has them) and the pick, with `no answer` where the question is unanswered.
- * This is the shape the supervisor writes today (sdd-continue gate A receipt,
- * document-phase `gates.md`).
+ * it has them) and the pick, with `no answer` where the question is unanswered,
+ * plus a last `Notes: <note>` line when sent. This is the shape the supervisor
+ * writes today (sdd-continue gate A receipt, document-phase `gates.md`).
  */
-function gateSection(record: ControllerWaitRecord): string {
+function gateSection(record: ControllerWaitRecord, note?: string): string {
   const parts: string[] = [`## ${gateHeading(record.kind)}`, ''];
   record.questions.forEach((q, i) => {
     parts.push(`${i + 1}. ${q.text}`);
@@ -274,17 +285,34 @@ function gateSection(record: ControllerWaitRecord): string {
     parts.push(`   Answer: ${pick && pick.length > 0 ? pick : 'no answer'}`);
     parts.push('');
   });
-  return parts.join('\n').replace(/\s+$/, '') + '\n';
+  return withNotesLine(parts.join('\n').replace(/\s+$/, '') + '\n', note);
 }
 
 /**
- * Write the gate section into `<specDir>/questions.md`, replacing an existing
- * section with the same heading and keeping any other (so answering Gate B
- * after Gate A keeps both).
+ * The ruling section for an `escalation` or `error` wait: `## <kind> <wait
+ * id>`, then per question its text, `Task: <task>` when tagged, and the
+ * pick (`no answer` when unanswered), plus a last `Notes: <note>` line when
+ * sent (design C4).
  */
-async function renderQuestionsMd(record: ControllerWaitRecord): Promise<void> {
+function rulingSection(record: ControllerWaitRecord, note?: string): string {
+  const parts: string[] = [`## ${record.kind} ${record.id}`, ''];
+  record.questions.forEach((q, i) => {
+    parts.push(`${i + 1}. ${q.text}`);
+    if (q.task) parts.push(`   Task: ${q.task}`);
+    const pick = record.answer?.[q.id]?.value;
+    parts.push(`   Answer: ${pick && pick.length > 0 ? pick : 'no answer'}`);
+    parts.push('');
+  });
+  return withNotesLine(parts.join('\n').replace(/\s+$/, '') + '\n', note);
+}
+
+/**
+ * Write `section` into `<specDir>/questions.md`, replacing an existing
+ * section with the same heading and keeping any other (so answering Gate B
+ * after Gate A, or a later wait's ruling after an earlier one, keeps both).
+ */
+async function writeSection(record: ControllerWaitRecord, heading: string, section: string): Promise<void> {
   const path = join(record.specDir, 'questions.md');
-  const section = gateSection(record);
 
   let existing = '';
   try {
@@ -294,7 +322,17 @@ async function renderQuestionsMd(record: ControllerWaitRecord): Promise<void> {
   }
 
   await fs.mkdir(record.specDir, { recursive: true });
-  await fs.writeFile(path, upsertSection(existing, gateHeading(record.kind), section), 'utf-8');
+  await fs.writeFile(path, upsertSection(existing, heading, section), 'utf-8');
+}
+
+/** Render and write the gate receipt for a `gate-a`/`gate-b` wait. */
+async function renderQuestionsMd(record: ControllerWaitRecord, note?: string): Promise<void> {
+  await writeSection(record, gateHeading(record.kind), gateSection(record, note));
+}
+
+/** Render and write the ruling section for an `escalation`/`error` wait. */
+async function renderRulingSection(record: ControllerWaitRecord, note?: string): Promise<void> {
+  await writeSection(record, `${record.kind} ${record.id}`, rulingSection(record, note));
 }
 
 /** Replace the `## <heading>` section with `section`, or append it when absent. */
@@ -307,11 +345,11 @@ function upsertSection(existing: string, heading: string, section: string): stri
   return kept.join('\n\n') + '\n';
 }
 
-/** A one-line human summary for the `note` ledger row. */
-function noteText(record: ControllerWaitRecord, by: string): string {
+/** A one-line human summary for the `note` ledger row, ending `; note: <note>` when sent. */
+function noteText(record: ControllerWaitRecord, by: string, note?: string): string {
   const picks = record.questions.map((q) => record.answer?.[q.id]?.value ?? 'no answer');
   const detail = picks.length > 0 ? `: ${picks.join('; ')}` : '';
-  return `${record.kind} answered by ${by}${detail}`;
+  return `${record.kind} answered by ${by}${detail}${note ? `; note: ${note}` : ''}`;
 }
 
 /**
@@ -319,13 +357,13 @@ function noteText(record: ControllerWaitRecord, by: string): string {
  * format (`{ts, run, spec, type:'note', text}`). Written directly, not through
  * the T3 ledger module, which is not merged.
  */
-async function appendNote(record: ControllerWaitRecord, by: string): Promise<void> {
+async function appendNote(record: ControllerWaitRecord, by: string, note?: string): Promise<void> {
   const line = {
     ts: new Date().toISOString(),
     run: record.run,
     spec: record.spec,
     type: 'note' as const,
-    text: noteText(record, by),
+    text: noteText(record, by, note),
   };
   await fs.mkdir(record.specDir, { recursive: true });
   await fs.appendFile(join(record.specDir, 'harness-events.jsonl'), JSON.stringify(line) + '\n', 'utf-8');

@@ -698,10 +698,10 @@ export class MultiProjectDashboardServer {
       return { waits: await listWaitsForWire() };
     });
 
-    // Answer one wait: body `{ answers: {questionId: value}, by }`.
+    // Answer one wait: body `{ answers: {questionId: value}, by, note? }`.
     this.app.post('/api/controller/waits/:id/answer', async (request, reply) => {
       const { id } = request.params as { id: string };
-      const body = (request.body ?? {}) as { answers?: Record<string, string>; by?: string };
+      const body = (request.body ?? {}) as { answers?: Record<string, string>; by?: string; note?: string };
       // An answer under a key the wait never asked is stored but never read, so
       // the run stays parked: refuse it (a merge wait asks `merge:<repo>#<n>`).
       const existing = (await readWait(id)) as ControllerWaitRecord | undefined;
@@ -709,7 +709,8 @@ export class MultiProjectDashboardServer {
       if (check) {
         return reply.code(400).send({ error: 'unknown-question', unknown: check.unknown, expected: check.expected });
       }
-      const record = await answerWait(id, body.answers ?? {}, body.by ?? 'operator');
+      const note = typeof body.note === 'string' ? body.note.trim() : '';
+      const record = await answerWait(id, body.answers ?? {}, body.by ?? 'operator', note || undefined);
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
       return { ok: true };
     });
