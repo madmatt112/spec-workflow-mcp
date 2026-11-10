@@ -67,8 +67,18 @@ describe('readTaskRow', () => {
   const TASK_2_E2E = `- [ ] 2. Render the panel
   - File: src/panel.tsx
   - Test: e2e/panel.spec.ts — \`panel renders\`
-  - Purpose: shows the panel. kind: e2e — the Playwright suite is the only test of this panel.
+  - kind: e2e
+  - Purpose: shows the panel. The Playwright suite is the only test of this panel.
   - _Prompt: Task: Render the panel | Restrictions: none | Success: the panel renders_
+`;
+
+  // Prose that merely quotes the marker in a code span must not route (retro F4/P4):
+  // the anchored match only recognises a standalone marker line.
+  const TASK_3_QUOTES_MARKER = `- [ ] 3. Render the other panel
+  - File: src/other.tsx
+  - Test: src/__tests__/other.test.ts — \`other()\`
+  - Purpose: like task 2 but do not write \`kind: e2e\` here.
+  - _Prompt: Task: Render the other panel | Restrictions: none | Success: the other panel renders_
 `;
 
   it('returns ok with id, title, Success text, tdd true, risk and files', () => {
@@ -92,12 +102,20 @@ describe('readTaskRow', () => {
     });
   });
 
-  it('gives tdd false for a block marked kind: e2e', () => {
+  it('gives tdd false for a block with a standalone kind: e2e marker line', () => {
     writeTasks(TASK_2_E2E);
 
     const row = readTaskRow(specDir, '2');
 
     expect(row).toMatchObject({ state: 'ok', tdd: false });
+  });
+
+  it('gives tdd true when prose only quotes kind: e2e in a code span', () => {
+    writeTasks(TASK_3_QUOTES_MARKER);
+
+    const row = readTaskRow(specDir, '3');
+
+    expect(row).toMatchObject({ state: 'ok', tdd: true });
   });
 
   it('gives success null with no Success section', () => {

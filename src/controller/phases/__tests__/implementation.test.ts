@@ -1202,7 +1202,7 @@ describe('runImplementationPhase', () => {
   // task 7 stopped on "required values 'authorFiles', 'authorReport' missing").
   it('briefs the implementer of a kind: e2e task that has a Test line', async () => {
     const md = taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })
-      .replace('Purpose: do the thing.', 'Purpose: do the thing. kind: e2e');
+      .replace('  - Purpose: do the thing.', '  - kind: e2e\n  - Purpose: do the thing.');
     fx = await setup([md]);
     writeScript(fx, [await implRun(fx, '1', 'src/a.js'), verifierRun('pass'), e2eRun('pass')]);
 
