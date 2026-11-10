@@ -69,7 +69,7 @@ Dependency order: run the tasks in number order. The chains are 1 â†’ 4 and 1 â†
   - _Requirements: 2.12_
   - _Prompt: Task: Per design C7 and design Data Models (requirement 2 AC 12), add `task?: string` to `ControllerWaitQuestion` and `detail?: string` to `ControllerWait` in both `src/dashboard/shell/types.ts:57-95` and `src/dashboard_frontend/src/modules/shell/types.ts:53-91`, and add `WaitTaskRow`, `WaitDiff`, `DiffCommit`, `DiffFile` and `DiffHunk` to both, the same text in each | Restrictions: Neither copy gains `commits`; change no existing field | Success: the two copies hold the same new declarations; `npx tsc --noEmit`, `npx vitest run src/dashboard/shell/__tests__/shell-feed.test.ts src/dashboard/shell/__tests__/board-view.test.ts` pass_
 
-- [ ] 7. Build the task row reader
+- [x] 7. Build the task row reader
   - File: src/dashboard/shell/ruling-rows.ts
   - File: src/controller/phases/implementation.ts
   - File: src/dashboard/shell/__tests__/ruling-rows.test.ts
