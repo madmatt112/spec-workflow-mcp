@@ -1535,6 +1535,119 @@ describe('runOnce close-out-phase cancel suppresses the final error wait (design
   }, 30000);
 });
 
+// Contract for the evidence `handleImplementationOutcome` writes into the
+// ruling and error waits (design C3 "Wait creation in the run driver",
+// Requirement 2 AC 9). Per the task's Success line, two sub-cases:
+//
+// T1 a DESIGN-DEFECT flag opens an `escalation` wait whose record holds
+//    `detail` and `commits`, and whose `ruling` question carries the task tag.
+//    Pre: approved requirements/design/tasks, tasks.md rewritten with one
+//    real pending task 1 (no `- Test:` line, so the author step is skipped),
+//    a scripted implementer reporting a DESIGN-DEFECT flag.
+//    Test: runOnce(deps(fx), runId).
+//    Observable: the opened `escalation` wait's `detail` (the capped worker
+//    report `buildRulingDetail` builds) and `commits` (the task's commits
+//    since its pick, `rulingCommits`/`taskCommits`), and its `ruling`
+//    question's `task` field.
+//    Source: design C3 ("the ruling wait ... pass `{ detail: outcome.detail,
+//    commits: outcome.commits }`, and the `error` question gains `task:
+//    outcome.task` when set"); Requirement 2 AC 9.
+//
+// T2 a never-logged error raised again after the fresh retry opens an
+//    `error` wait whose record holds `commits` and whose `error` question
+//    carries `task` `1`.
+//    Pre: the same approved documents and pending task 1, a scripted
+//    implementer that never calls `log-implementation` — two script entries
+//    per `runImplementationPhase` entry (the phase's own two-attempt logging
+//    loop, `src/controller/phases/implementation.ts:823-844`) and two more
+//    for the run driver's one fresh retry (`RUN_FRESH_RETRY`,
+//    `src/controller/runs.ts:595`).
+//    Test: runOnce(deps(fx), runId) — one call: `handleImplementationOutcome`'s
+//    `retry` result makes `runOnce`'s own loop `continue` and re-enter the
+//    phase (`src/controller/runs.ts:1055`).
+//    Observable: the opened `error` wait's `commits` and its `error`
+//    question's `task` field.
+//    Source: design C3 (as above); Requirement 2 AC 9.
+describe('runOnce writes the outcome evidence into the ruling and error waits (design C3, Requirement 2 AC 9)', () => {
+  /** A real, pending task 1 with no `- Test:` line, so the author step is
+   * skipped and the implementer spawns straight away. */
+  function seedPendingTask(fx: Fixture): void {
+    writeFileSync(join(fx.specDir, 'tasks.md'), [
+      '# Tasks Document', '',
+      '- [ ] 1. Add the module',
+      '  - File: src/a.js',
+      '  - Purpose: do the thing.',
+      '  - _Requirements: 1.1_',
+      '  - _Prompt: Task: do it | Restrictions: none | Success: it works_',
+      '',
+    ].join('\n'));
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'seed approved documents']);
+  }
+
+  it('T1: a DESIGN-DEFECT flag opens an escalation wait whose record holds detail and commits, and whose ruling question carries the task tag', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    seedPendingTask(fx);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']).trim();
+    writeScript(fx, [{
+      result: {
+        subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: '',
+        structured_output: {
+          logged: 'n/a', commit: 'none', checks: '', checksFile: '', green: '',
+          flag: 'DESIGN-DEFECT: the design names a seam that does not exist', retro: 'none',
+        },
+        usage: USAGE,
+      },
+    }]);
+    await writeRun(seedRun(fx));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    const wait = (await listWaits()).find((w) => w.kind === 'escalation' && w.run === 'run-20261011-000000');
+    expect(wait).toBeTruthy();
+    expect(wait!.questions.find((q) => q.id === 'ruling')?.task).toBe('1');
+    expect(wait!.detail).toMatch(/^## Worker report/);
+    expect(wait!.detail).toContain('the design names a seam that does not exist');
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(expectedCommits.length).toBeGreaterThan(0);
+    expect(wait!.commits).toEqual(expectedCommits);
+  }, 30000);
+
+  it('T2: a never-logged error raised again after the fresh retry opens an error wait whose record holds commits and whose error question carries task 1', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    seedPendingTask(fx);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']).trim();
+    const neverLogged = {
+      result: {
+        subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: '',
+        structured_output: { logged: 'no', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' },
+        usage: USAGE,
+      },
+    };
+    // Two script entries for the first `runImplementationPhase` entry's own
+    // two-attempt logging loop, two more for the entry the fresh retry drives.
+    writeScript(fx, [neverLogged, neverLogged, neverLogged, neverLogged]);
+    await writeRun(seedRun(fx));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    const wait = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+    expect(wait).toBeTruthy();
+    expect(wait!.questions.find((q) => q.id === 'error')?.task).toBe('1');
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(expectedCommits.length).toBeGreaterThan(0);
+    expect(wait!.commits).toEqual(expectedCommits);
+  }, 30000);
+});
+
 // Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.
 describe('setRunHeartbeat', () => {
   const RUN_ID = 'run-20261011-000000';
@@ -2259,6 +2372,32 @@ describe('runOnce merge stage', () => {
       ledger.note('security: recheck adjudicated: findings 1, suspicions 0');
       ledger.note(`security: open ${JSON.stringify([finding])}`);
     }
+
+    // [regression guard] Requirement 2 AC 10: the security escalation wait
+    // carries neither `detail` nor `commits` (the task's own Note: "the
+    // security wait carrying neither field holds at base"). Holds already
+    // because `waitAnd`'s security call site passes no evidence argument,
+    // and `createWait` only sets the fields when given one; design C3 keeps
+    // it that way after the ruling/error call sites gain theirs. No existing
+    // assertion in this describe block reads `wait.detail`/`wait.commits`
+    // (T1 above checks only `questions[0]`), so this is named here per the
+    // implementer brief (agent-rules P10/P12) rather than left uncovered.
+    it('[regression guard] the security escalation wait carries neither detail nor commits', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const wait = (await listWaits()).find(
+        (w) => w.kind === 'escalation' && w.run === 'run-20261011-000000' && w.questions.some((q) => q.id === 'security'),
+      );
+      expect(wait).toBeTruthy();
+      expect(wait!.detail).toBeUndefined();
+      expect(wait!.commits).toBeUndefined();
+    }, 30000);
 
     it('T1: security-open opens one escalation wait, question id security, options accept/retry/abandon, no recommendation', async () => {
       await approve(fx, 'requirements');
