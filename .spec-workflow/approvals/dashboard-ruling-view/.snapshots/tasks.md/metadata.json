@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-ruling-view/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-09T04:58:58.174Z",
+      "trigger": "initial",
+      "approvalId": "approval_1794200338102_4v7gcamcs",
+      "approvalTitle": "dashboard-ruling-view tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-09T04:58:58.348Z",
+      "trigger": "approved",
+      "approvalId": "approval_1794200338102_4v7gcamcs",
+      "approvalTitle": "dashboard-ruling-view tasks v2"
+    }
+  ]
+}

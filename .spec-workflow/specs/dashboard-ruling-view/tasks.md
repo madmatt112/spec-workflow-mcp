@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: run the tasks in number order. The chains are 1 → 4 and 1 → 5; 2 → 3 → 4; 6 → 7, 6 → 8 and 7, 8 → 9; 6 → 10 → 11 → 12; task 13 runs last. Server tasks (1-9) come before the view (10-12), so the view reads real routes. Each task leaves `npx tsc --noEmit` and every vitest suite green; tsc does not cover `src/dashboard_frontend/` (`./tsconfig.json:20`), so frontend tasks prove their code through vitest dynamic imports and Playwright. Line citations are to base bb6d32ff; where an earlier task here edited the file, the named symbol is the anchor and the implementer re-resolves the line. If SPEC_WORKFLOW_SHARED_ROOT is set in the session, run vitest as `env -u SPEC_WORKFLOW_SHARED_ROOT -u SPEC_WORKFLOW_WORKSPACE npx vitest run …`. Tasks 2, 7, 8, 10 and 11 add new modules, so expect at least five verifier spawns. Tasks 6 and 13 carry no `- Test:` seam and route implementer-only.
 
-- [ ] 1. Add the evidence fields to the wait record
+- [x] 1. Add the evidence fields to the wait record
   - File: src/controller/state.ts
   - File: src/controller/waits.ts
   - File: src/controller/__tests__/waits.test.ts

@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/waits.test.ts"],"seams":{"src/controller/__tests__/waits.test.ts":"createWait(input)"},"redCommit":"c514fedfe59a48d915bff19d71342d5a7c1f3c2e","baseSha":"bb6d32ff832f3538b37cb1d4caf77d9c6c2c7a1b","base":"assertion-red","head":"pass","amended":false,"judged":null}

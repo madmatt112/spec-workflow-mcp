@@ -61,3 +61,21 @@
 {"ts":"2026-11-09T04:56:10.794Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-reviser","role":"lint v2","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-11-09T04:58:00.780Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-reviser","input":"10","output":"8069","cacheWrite":"50074","cacheRead":"215371","tokens":"273524","cacheWrite5m":"0","cacheWrite1h":"50074","model":"claude-opus-4-8"}
 {"ts":"2026-11-09T04:58:00.780Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","result":"success","phase":"tasks"}
+{"ts":"2026-11-09T04:58:00.867Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-checker","role":"narrow check v2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-09T04:58:58.046Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-checker","input":"24","output":"3669","cacheWrite":"61896","cacheRead":"731670","tokens":"797259","cacheWrite5m":"0","cacheWrite1h":"61896","model":"claude-sonnet-5"}
+{"ts":"2026-11-09T04:58:58.047Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-checker","role":"narrow check v2","result":"success","phase":"tasks"}
+{"ts":"2026-11-09T04:58:58.047Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"review cap: round 1 drafting-only, 1 item(s), v2 approved"}
+{"ts":"2026-11-09T04:58:58.733Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"phase.end","phase":"tasks","result":"approved","state":"v2","note":"2 rounds"}
+{"ts":"2026-11-10T00:43:04.697Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate-b answered by operator: Approve"}
+{"ts":"2026-11-10T00:43:06.020Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"phase.start","phase":"implementation","mode":"normal","state":"tasks 0/13"}
+{"ts":"2026-11-10T00:43:06.862Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"1","title":"Add the evidence fields to the wait record"}
+{"ts":"2026-11-10T00:43:06.866Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"task 1 pick head bb6d32ff832f3538b37cb1d4caf77d9c6c2c7a1b"}
+{"ts":"2026-11-10T00:43:06.926Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-test-author","role":"author task 1","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-10T00:47:04.725Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-test-author","input":"44","output":"19300","cacheWrite":"90898","cacheRead":"1862955","tokens":"1973197","cacheWrite5m":"0","cacheWrite1h":"90898","model":"claude-sonnet-5"}
+{"ts":"2026-11-10T00:47:04.725Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-test-author","role":"author task 1","result":"none","phase":"implementation","task":"1"}
+{"ts":"2026-11-10T00:47:04.759Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"task 1 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-10T00:47:04.759Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-implementer","role":"implement task 1","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-10T00:48:15.580Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-implementer","input":"38","output":"4326","cacheWrite":"51993","cacheRead":"1178013","tokens":"1234370","cacheWrite5m":"0","cacheWrite1h":"51993","model":"claude-sonnet-5"}
+{"ts":"2026-11-10T00:48:15.580Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
+{"ts":"2026-11-10T00:48:34.304Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: task 1 pass risk low tdd assertion-red"}
+{"ts":"2026-11-10T00:48:34.309Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"1","rounds":"0","outcome":"gate"}

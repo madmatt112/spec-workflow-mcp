@@ -1608,3 +1608,9 @@ Gotchas:
 | Carried items | none |
 | Next phase loads | codebase-context.md |
 
+
+## dashboard-ruling-view — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/13, last commit c484b517, next task 2 |
