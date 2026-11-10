@@ -12,8 +12,7 @@ export type LintRule =
   | 'citation-path' | 'citation-range' | 'citation-unchecked' | 'citation-bare' | 'citation-identifier'
   | 'mdx' | 'ears-shape' | 'tasks-format' | 'task-requirement-id' | 'task-requirement-unchecked'
   | 'doc-words' | 'task-words' | 'caps-invalid'
-  | 'coverage-component' | 'coverage-unchecked' | 'bridge-missing' | 'task-test-seam'
-  | 'task-e2e-marker';
+  | 'coverage-component' | 'coverage-unchecked' | 'bridge-missing' | 'task-test-seam';
 
 export interface LintFinding {
   file: string;
@@ -61,7 +60,6 @@ export const CHECKS_BY_PHASE: Record<LintPhase, LintRule[]> = {
     'coverage-unchecked',
     'bridge-missing',
     'task-test-seam',
-    'task-e2e-marker',
   ],
 };
 

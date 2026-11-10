@@ -19,7 +19,6 @@ import type { TaskBlock } from './lint-markdown.js';
 import type { LintFinding } from './lint-types.js';
 import { parseTasksFromMarkdown, parseTestLine, TEST_BULLET_RE } from './task-parser.js';
 import { isDocPath, isTestPath } from './gate-rules.js';
-import { E2E_MARKER_RE } from './tdd-mark.js';
 
 // --- Regexes ----------------------------------------------------------------
 
@@ -343,32 +342,6 @@ export function checkTestSeams(lines: string[], blocks: TaskBlock[]): LintFindin
       file: '', line: task.lineNumber + 1, rule: 'task-test-seam', severity: 'info',
       message: `task ${task.id} changes source and has no Test line`,
     });
-  }
-
-  return findings;
-}
-
-/** A `kind: e2e` mention anywhere on a line (case-insensitive). */
-const E2E_MENTION_RE = /\bkind:\s*e2e\b/i;
-
-/**
- * Flag a `kind: e2e` marker written inline in prose instead of on its own line
- * (retro F6/P6). The router keys the implementer-only routing on a standalone
- * marker line (`E2E_MARKER_RE`), so an inline mention — in a Purpose line, for
- * example — does not route and is almost always a mis-placed marker. One
- * `warning` per offending line; a standalone marker line passes. `file` empty.
- */
-export function checkE2eMarker(lines: string[], blocks: TaskBlock[]): LintFinding[] {
-  const findings: LintFinding[] = [];
-
-  for (const block of blocks) {
-    for (let i = block.start - 1; i < block.end; i++) {
-      if (!E2E_MENTION_RE.test(lines[i]) || E2E_MARKER_RE.test(lines[i])) continue;
-      findings.push({
-        file: '', line: i + 1, rule: 'task-e2e-marker', severity: 'warning',
-        message: 'kind: e2e marker must be on its own line, not inline in prose',
-      });
-    }
   }
 
   return findings;

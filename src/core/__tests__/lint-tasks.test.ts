@@ -7,7 +7,6 @@ import {
   checkCoverage,
   checkBridges,
   checkTestSeams,
-  checkE2eMarker,
 } from '../lint-tasks.js';
 import { taskBlocks } from '../lint-markdown.js';
 
@@ -288,46 +287,5 @@ describe('checkTestSeams', () => {
       '  - _Prompt: Task: do it_',
     ];
     expect(checkTestSeams(lines, taskBlocks(lines))).toEqual([]);
-  });
-});
-
-describe('checkE2eMarker', () => {
-  it('warns on an inline kind: e2e marker in a Purpose line', () => {
-    const lines = [
-      '- [ ] 1. Render the panel',
-      '  - Test: e2e/panel.spec.ts — `panel renders`',
-      '  - Purpose: shows the panel. kind: e2e — Playwright is the only test.',
-      '  - _Prompt: Task: do it_',
-    ];
-    expect(checkE2eMarker(lines, taskBlocks(lines))).toEqual([
-      { file: '', line: 3, rule: 'task-e2e-marker', severity: 'warning', message: 'kind: e2e marker must be on its own line, not inline in prose' },
-    ]);
-  });
-
-  it('passes a standalone kind: e2e marker line (bulleted or not)', () => {
-    const bulleted = [
-      '- [ ] 1. Render the panel',
-      '  - Test: e2e/panel.spec.ts — `panel renders`',
-      '  - kind: e2e',
-      '  - _Prompt: Task: do it_',
-    ];
-    expect(checkE2eMarker(bulleted, taskBlocks(bulleted))).toEqual([]);
-
-    const bare = [
-      '- [ ] 1. Render the panel',
-      '  - Test: e2e/panel.spec.ts — `panel renders`',
-      '  kind: e2e',
-      '  - _Prompt: Task: do it_',
-    ];
-    expect(checkE2eMarker(bare, taskBlocks(bare))).toEqual([]);
-  });
-
-  it('reports nothing for a task that never mentions the marker', () => {
-    const lines = [
-      '- [ ] 1. Do the work',
-      '  - Test: src/core/foo.test.ts — foo()',
-      '  - _Prompt: Task: do it_',
-    ];
-    expect(checkE2eMarker(lines, taskBlocks(lines))).toEqual([]);
   });
 });
