@@ -3,7 +3,7 @@ import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
 import { needsYou, nextProjects, nextTiles, running, stopped } from './board';
 import { ActionTile, NextTile, RunTile, WaitTile } from './tiles';
-import { AnswerSheet } from './AnswerSheet';
+import { RulingView } from './RulingView';
 import { useStages } from './useStages';
 import { useNextViews } from './useNextViews';
 import { buildLaunchInput } from './harness';
@@ -161,10 +161,19 @@ export function HomePage() {
         >
           {'Back to board'}
         </button>
-        <AnswerSheet
+        <RulingView
           wait={openWait}
+          runs={controllerRuns}
           projectName={projectName(openWait.project)}
-          onDone={() => setOpenWaitId(null)}
+          now={tick}
+          stage={null}
+          onAnswer={(body) => stages.press(
+            `wait:${openWait.id}`,
+            'answer',
+            `/api/controller/waits/${openWait.id}/answer`,
+            'POST',
+            body,
+          )}
         />
       </div>
     );

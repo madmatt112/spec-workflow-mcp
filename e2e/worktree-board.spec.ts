@@ -694,7 +694,7 @@ test.describe('Home (board)', () => {
   //   within 20px of the board's captured width (full width, not a side
   //   panel).
   //   Expected-value source: design C10 "While a wait is open, Home renders
-  //   a 'Back to board' link and `AnswerSheet` at full width instead of the
+  //   a 'Back to board' link and `RulingView` at full width instead of the
   //   bands."
   test('(R4 AC4) pressing Answer replaces the board with the sheet at full width and a Back to board link', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });

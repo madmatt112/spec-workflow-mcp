@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdir, rm, writeFile } from 'fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { mkdtempSync, writeFileSync } from 'fs';
 import { execFileSync } from 'child_process';
 import { join } from 'path';
@@ -7,6 +7,7 @@ import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
 import { scrubbedGitEnv } from '../src/core/git-utils.js';
+import { secretPath } from '../src/controller/access.js';
 import type { RunRecord, WaitRecord } from '../src/controller/state.js';
 
 /**
@@ -16,9 +17,12 @@ import type { RunRecord, WaitRecord } from '../src/controller/state.js';
  * or `runs/<id>/run.json` stays exactly as written — the same fixture style
  * `e2e/worktree-board.spec.ts` uses. Every case reaches the view only through
  * the one seam the decomposition names: pressing "Answer" on the wait's tile
- * (`tile.getByRole('button', { name: 'Answer', exact: true }).click()`). No
- * case needs a login: every route the view reads is a GET, and the access
- * guard lets a loopback GET through unauthenticated (`src/controller/access.ts`).
+ * (`tile.getByRole('button', { name: 'Answer', exact: true }).click()`). The
+ * task/diff routes the view reads sit under `/api/controller/`, so, per
+ * Requirement 4 AC 11 ("no exemption"), the loopback GET passthrough in
+ * `src/controller/access.ts` does not cover them the way it covers a
+ * non-controller read; `pressAnswer` below logs the page in first, the same
+ * way `e2e/worktree-board.spec.ts:34-37` does for its mutating calls.
  *
  * Contract, per case below — pre-condition, the call through the seam, the
  * observable result, and the source of the expected value:
@@ -186,8 +190,15 @@ function baseRun(id: string, project: string, worktree: string, overrides: Parti
   };
 }
 
+/** Logs the page in, as `e2e/worktree-board.spec.ts:34-37` does, so the ruling view's own `/task` and `/diff` GETs (under `/api/controller/`, Requirement 4 AC 11) carry the session they require. */
+async function login(page: Page): Promise<void> {
+  const secret = (await readFile(secretPath(), 'utf-8')).trim();
+  await page.request.post('/api/login', { data: { secret } });
+}
+
 async function pressAnswer(page: Page, waitId: string): Promise<void> {
   await page.goto('/');
+  await login(page);
   const tile = page.getByTestId(`wait-tile-${waitId}`);
   await expect(tile).toBeVisible({ timeout: 15000 });
   await tile.getByRole('button', { name: 'Answer', exact: true }).click();
