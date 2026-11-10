@@ -37,10 +37,11 @@
 | 22 | advisor | Complete | 19/19 |
 | 23 | dashboard-board | Complete | 23/23 |
 | 24 | decisions-and-launch-guard | Complete | 23/23 |
-| 25 | dashboard-loop-views | Complete | 14/14 |
-| 26 | project-bootstrap | Complete | 11/11 |
-| 27 | verification-loop | Complete | 14/14 |
-| 28 | tighter-reviews | Complete | 29/29 |
+| 25 | dashboard-ruling-view | Complete | 13/13 |
+| 26 | dashboard-loop-views | Complete | 14/14 |
+| 27 | project-bootstrap | Complete | 11/11 |
+| 28 | verification-loop | Complete | 14/14 |
+| 29 | tighter-reviews | Complete | 29/29 |
 
 ## Other specs (not in decomposition.md)
 

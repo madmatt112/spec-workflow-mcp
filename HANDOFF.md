@@ -1615,4 +1615,11 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 13/13, last commit ad04049f, next completion gate |
+| State | tasks 13/13, implemented 2026-11-10 |
+| Implemented | 2026-11-10 |
+| PR | pending |
+| Coverage | logCoverage 13/13; reviewCoverage 13/13; TDD 10 task(s): assertion-red 5, structural-red 5, vacuous 0, inconclusive 0 |
+| Deferrals | 1 added by this spec, 44 open in all |
+| Verifier-skipped | task 13 (gate-only review, retro P6/P15) |
+| Next | d-9c725b5d isTddMarked matches kind: e2e anywhere in the block, and duplicates the brief tool's rule |
+| Gotchas | none |
