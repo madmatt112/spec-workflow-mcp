@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-ruling.spec.ts"],"seams":{"e2e/worktree-ruling.spec.ts":"page.getByTestId('answer-submit').click()"},"redCommit":"72bf88905dbc44504299e0282958c192cc8c4556","baseSha":"3f1dd26c080ab5b1f9c9c6e00e0dce26b220c759","base":"structural-red","head":"pass","amended":true,"judged":null}
