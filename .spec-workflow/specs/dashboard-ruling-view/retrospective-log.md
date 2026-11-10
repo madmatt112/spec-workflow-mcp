@@ -114,3 +114,13 @@ Cost: implementer
 harness batch 2: 1 done of 3, 1 fix round(s)
 Evidence: batch 2 · mark run-20261109-030116 72f294f2
 Cost: 2 implementer spawn(s)
+
+## 2026-11-10T14:06:16Z · closeout · code batch 3 · deviation
+P3 skipped: Correctly deferred (d-f1167a89); clear(key) fix belongs in the next dashboard task that lists useStages in its File list, not this retro batch. Item instructs deferral, DECISION NEEDED: no.
+Evidence: P3 · mark run-20261109-030116 9ecfffcd
+Cost: unknown
+
+## 2026-11-10T14:06:16Z · closeout · code batch 3 · cleanup
+code batch 3: 0 done of 1, 0 fix round(s)
+Evidence: batch 3 · mark run-20261109-030116 bce6854d
+Cost: 1 implementer spawn(s)
