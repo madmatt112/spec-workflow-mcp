@@ -194,6 +194,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-10 | dashboard-ruling-view | implementation | tasks 10/13 | design-defect | task 11: implementer reported REQUIRED for an off-list file — src/dashboard/shell/__tests__/ruling-view.test.ts — task 11's own success check `grep -rn AnswerSheet src e2e` hits this task-10 author test's prose comments (lines ~313/321, citing "AnswerSheet.tsx:254-257"); the file is absent from task 11's File: list, so no implementer edit can clear this per the agent-rules.md root-walking-scrub rule — add it to tasks.md's File: list and the comment can be reworded.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md |
 | 2026-11-10 | dashboard-ruling-view | implementation | tasks 13/13 | complete | PR #215 |
 | 2026-11-10 | dashboard-ruling-view | retrospective |  | retro-ready | 11 findings, 9 proposals |
+| 2026-11-10 | dashboard-ruling-view | closeout | items 9/9 | closed | 2 done, 2 to-do, 5 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1625,3 +1626,13 @@ Gotchas:
 | Verifier-skipped | task 13 (gate-only review, retro P6/P15) |
 | Next | d-9c725b5d isTddMarked matches kind: e2e anywhere in the block, and duplicates the brief tool's rule |
 | Gotchas | none |
+
+## dashboard-ruling-view — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 9/9: 2 done, 2 to-do, 5 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/217 |
+| To-dos | P5: Fix complete & green in-tree (committed eed2f190); gate fails only file-outside-list, no implementer commit can clear it. REQUIRED: src/core/tdd-mark.ts (shared predicate the item mandates in src/core); REQUIRED: src/controller/phases/implementation.ts (controller consumer named by Target). Both genuinely required, not accidental.; P6: Fix complete & green in-tree (committed 0f56041); gate fails only file-outside-list. REQUIRED: harness/agents/sdd-drafter.md (tasks-drafter convention in Target); REQUIRED: src/core/lint-tasks.ts, src/core/lint-types.ts, src/tools/spec-lint.ts (the mandated inline-marker lint). Owed: evals core-tdd-mark-single-source + tasks-lint-e2e-marker not addable (amend-nothing, new off-list paths). |
+| Gotchas | none |
+
