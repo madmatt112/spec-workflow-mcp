@@ -42,7 +42,9 @@ import { WaitPusher } from '../advisor/push.js';
 import { listRunsForWire } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
-import { listRuns, readRateLimit, readWait } from '../controller/state.js';
+import { listRuns, readRateLimit, readRun, readWait } from '../controller/state.js';
+import { readTaskRow } from './shell/ruling-rows.js';
+import { readWaitDiff } from './shell/wait-diff.js';
 import { installAccessControl, loadOrCreateSecret, loadOrCreateAdvisorSecret, secretPath } from '../controller/access.js';
 import type { DeployUnit } from '../controller/deploy.js';
 
@@ -722,6 +724,25 @@ export class MultiProjectDashboardServer {
       const record = await attachAdvice(id, body.advice ?? '');
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
       return { ok: true };
+    });
+
+    // Live task row for the ruling view (design C5; Requirement 3 AC 4).
+    this.app.get('/api/controller/waits/:id/task', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const record = (await readWait(id)) as ControllerWaitRecord | undefined;
+      if (!record) return reply.code(404).send({ error: 'wait-not-found' });
+      const taskId = record.questions[0]?.task;
+      if (!taskId) return { state: 'no-task' };
+      return readTaskRow(record.specDir, taskId);
+    });
+
+    // Live diff read for the ruling view (design C6; Requirement 4 AC 1, AC 11).
+    this.app.get('/api/controller/waits/:id/diff', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const record = (await readWait(id)) as ControllerWaitRecord | undefined;
+      if (!record) return reply.code(404).send({ error: 'wait-not-found' });
+      const run = await readRun(record.run);
+      return readWaitDiff(record, run);
     });
 
     // Run one second-opinion step on a wait, on the operator's press only (design C7).
