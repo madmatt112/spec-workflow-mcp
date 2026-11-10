@@ -1615,4 +1615,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 10/13, stopped: design-defect — task 11: implementer reported REQUIRED for an off-list file — src/dashboard/shell/__tests__/ruling-view.test.ts — task 11's own success check `grep -rn AnswerSheet src e2e` hits this task-10 author test's prose comments (lines ~313/321, citing "AnswerSheet.tsx:254-257"); the file is absent from task 11's File: list, so no implementer edit can clear this per the agent-rules.md root-walking-scrub rule — add it to tasks.md's File: list and the comment can be reworded.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md |
+| State | tasks 11/13, last commit 3f1dd26c, next task 12 |

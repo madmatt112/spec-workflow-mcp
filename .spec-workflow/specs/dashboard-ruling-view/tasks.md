@@ -115,12 +115,13 @@ Dependency order: run the tasks in number order. The chains are 1 → 4 and 1 �
   - _Requirements: 5.6, 5.7, 6.1, 6.2, 6.3, 6.4, 6.5, 6.9, 6.11_
   - _Prompt: Task: Per design C8 "New pure module", C9 and design D6, D7, D10 (requirement 6 AC 2 to AC 5, AC 9, AC 11), create `ruling.ts` with `rulingLayout`, `initialValues`, `answerOf`, `canSubmit`, `answerPayload`, `securityLines` and `offersAbandon` as design C8 pins them. Add `'answer'` to `StageName` (`src/dashboard_frontend/src/modules/shell/stage.ts:13`) and its `resolved` case (`:73-96`). Load both modules by dynamic import, as `src/dashboard/shell/__tests__/board-view.test.ts:19-33` does | Restrictions: Type-only imports in `ruling.ts`; no React; do not change `responseStage` or `advance` | Success: `rulingLayout` gives `security`, `task`, `taskless`, `gate`, `retro-plan`, `merge` and `question` for one wait each; `initialValues` gives `recommended`, else empty; `canSubmit` is false with an unpicked radio, false with an empty `ruling` text, true when every radio is picked; `answerOf` prefers non-empty text over the pick on a free question with options; `answerPayload` appends a blank line, `Notes: ` and the notes to the first typed answer, puts notes in `note` when every answer is a pick, and adds `proposal:` keys for `retro-plan`; `securityLines` splits lead, findings and tail; `offersAbandon` is true only for an escalation or error with no `abandon` option; `resolved` for `answer` is true with the run gone or not `waiting`, false while `waiting`; `npx vitest run src/dashboard/shell/__tests__/ruling-view.test.ts src/dashboard/shell/__tests__/board-view.test.ts` passes_
 
-- [ ] 11. Render the ruling view in place of the answer sheet
+- [x] 11. Render the ruling view in place of the answer sheet
   - File: src/dashboard_frontend/src/modules/shell/RulingView.tsx
   - File: src/dashboard_frontend/src/modules/shell/HomePage.tsx
   - File: src/dashboard_frontend/src/modules/shell/AnswerSheet.tsx
   - File: e2e/worktree-ruling.spec.ts
   - File: e2e/worktree-board.spec.ts
+  - File: src/dashboard/shell/__tests__/ruling-view.test.ts
   - Test: e2e/worktree-ruling.spec.ts — `tile.getByRole('button', { name: 'Answer', exact: true }).click()`
   - Note: `AnswerSheet.tsx` is deleted. The cases at `e2e/worktree-board.spec.ts:699-835` keep every asserted value: the board swap, the link and the return are regression guards (requirement 1 AC 1, AC 7). Only the comment at `:697` changes.
   - Purpose: One screen per wait, every kind laid out for its decision.

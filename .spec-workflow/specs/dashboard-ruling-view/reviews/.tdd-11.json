@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-ruling.spec.ts"],"seams":{"e2e/worktree-ruling.spec.ts":"tile.getByRole('button', { name: 'Answer', exact: true }).click()"},"redCommit":"cf7716d2d425f0fb6e2fdc855e8978b7241d5212","baseSha":"b282c875bb725d3b32060615447172d7669877cc","base":"structural-red","head":"pass","amended":true,"judged":null}
