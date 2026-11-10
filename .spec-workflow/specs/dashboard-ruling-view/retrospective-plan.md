@@ -140,3 +140,7 @@ One line per proposal, written by the close-out phase.
 - P8: skipped — no change chosen
 - P9: skipped — no change chosen
 - P1: done — 4353215945f3dc9a58fc16bfc268aabfb8aac9ae
+- P4: done — 23474935b0bba10f883a71e58478150d416b6a0f
+- P5: to-do (human) — Fix complete & green in-tree (committed eed2f190); gate fails only file-outside-list, no implementer commit can clear it. REQUIRED: src/core/tdd-mark.ts (shared predicate the item mandates in src/core); REQUIRED: src/controller/phases/implementation.ts (controller consumer named by Target). Both genuinely required, not accidental.
+- P6: to-do (human) — Fix complete & green in-tree (committed 0f56041); gate fails only file-outside-list. REQUIRED: harness/agents/sdd-drafter.md (tasks-drafter convention in Target); REQUIRED: src/core/lint-tasks.ts, src/core/lint-types.ts, src/tools/spec-lint.ts (the mandated inline-marker lint). Owed: evals core-tdd-mark-single-source + tasks-lint-e2e-marker not addable (amend-nothing, new off-list paths).
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/217

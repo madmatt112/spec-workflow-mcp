@@ -257,3 +257,23 @@
 {"ts":"2026-11-10T13:40:29.095Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P1 files taken from the commit (no named path exists in the root)"}
 {"ts":"2026-11-10T13:40:36.291Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P1 pass risk low"}
 {"ts":"2026-11-10T13:40:36.313Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-11-10T13:40:50.993Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P4","title":"P4 (F4) — `isTddMarked` matches `kind: e2e` anywhere in the task block."}
+{"ts":"2026-11-10T13:40:50.993Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P5","title":"P5 (F5) — TDD marking logic is duplicated across controller and brief tool."}
+{"ts":"2026-11-10T13:40:50.993Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P6","title":"P6 (F6) — The `kind: e2e` marker has no documented convention."}
+{"ts":"2026-11-10T13:40:51.006Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-10T13:57:36.416Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-implementer","input":"162","output":"71743","cacheWrite":"158188","cacheRead":"9922016","tokens":"10152109","cacheWrite5m":"0","cacheWrite1h":"158188","model":"claude-opus-4-8"}
+{"ts":"2026-11-10T13:57:36.416Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-11-10T13:57:36.438Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P4 test files from the commit added to the list"}
+{"ts":"2026-11-10T13:57:44.882Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-11-10T13:57:44.906Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P5 test files from the commit added to the list"}
+{"ts":"2026-11-10T13:57:47.035Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P5 fail risk low"}
+{"ts":"2026-11-10T13:57:47.058Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P6 test files from the commit added to the list"}
+{"ts":"2026-11-10T13:57:49.322Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P6 fail risk low"}
+{"ts":"2026-11-10T13:57:49.326Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-implementer","role":"fix harness batch 2 round 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-10T14:04:15.621Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-implementer","input":"56","output":"29229","cacheWrite":"70099","cacheRead":"1690189","tokens":"1789573","cacheWrite5m":"0","cacheWrite1h":"70099","model":"claude-opus-4-8"}
+{"ts":"2026-11-10T14:04:15.622Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-implementer","role":"fix harness batch 2 round 1","result":"ok","phase":"closeout","round":"1"}
+{"ts":"2026-11-10T14:04:15.676Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"closeout: item P6 not landed, reverted 0f56041"}
+{"ts":"2026-11-10T14:04:15.696Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"closeout: item P5 not landed, reverted eed2f19"}
+{"ts":"2026-11-10T14:04:15.696Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-11-10T14:04:15.696Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P5","outcome":"to-do"}
+{"ts":"2026-11-10T14:04:15.697Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P6","outcome":"to-do"}

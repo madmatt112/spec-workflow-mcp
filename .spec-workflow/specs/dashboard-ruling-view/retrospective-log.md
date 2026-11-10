@@ -104,3 +104,13 @@ Cost: implementer
 store batch 1: 1 done of 1, 0 fix round(s)
 Evidence: batch 1 · mark run-20261109-030116 06ecf37b
 Cost: 1 implementer spawn(s)
+
+## 2026-11-10T13:57:36Z · closeout · harness batch 2 · gotcha
+harness-defect — all three retro proposals named harness/evals/<id> cases, but that framework is model-role only (spawns a role, grades a fixture repo) and these are pure-function/lint behaviours no role exercises; adding dirs would also break cases.test.ts SEED_IDS. Covered by vitest unit tests instead. Future retro proposals for non-role (controller/core/lint) behaviour should prescribe unit tests, not eval ids.
+Evidence: batch 2 · mark run-20261109-030116 92f8c826
+Cost: implementer
+
+## 2026-11-10T14:04:15Z · closeout · harness batch 2 · cleanup
+harness batch 2: 1 done of 3, 1 fix round(s)
+Evidence: batch 2 · mark run-20261109-030116 72f294f2
+Cost: 2 implementer spawn(s)
