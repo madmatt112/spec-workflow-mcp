@@ -268,7 +268,7 @@ const RETRO_CATEGORIES = new Set([
 ]);
 
 /** Is this a `[-]`/`[ ]` task whose `- Test:` seam routes it to the test author? */
-function isTddMarked(task: ParsedTask, block: string): boolean {
+export function isTddMarked(task: ParsedTask, block: string): boolean {
   if (!task.tests || task.tests.length === 0) return false;
   return !/\bkind:\s*e2e\b/i.test(block);
 }
