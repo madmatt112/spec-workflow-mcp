@@ -144,6 +144,57 @@ describe('controller wait routes (T4)', () => {
     expect(list.waits.find((w: any) => w.id === wait.id).state).toBe('open');
   });
 
+  // ---------------------------------------------------------------------------
+  // dashboard-ruling-view task 5 — the answer route's trailing `note` field
+  // (design C4; Requirement 6 AC 5, AC 7).
+  //
+  // Contract:
+  // - "the route with a note answers 200 and the receipt carries it" — Pre:
+  //   an open gate-a wait (seedGateA). Call: `POST .../answer` with body
+  //   `{ answers: { q1: 'Yes' }, by: 'operator', note: 'watch the budget' }`.
+  //   Observable: the response is 200 `{ ok: true }` (so `note` is never
+  //   refused as an unknown answer key — `checkAnswerKeys` only sees
+  //   `body.answers`), and `<specDir>/questions.md` contains `Notes: watch
+  //   the budget`. Source: design C4 ("a string `note` non-empty after trim
+  //   goes to `answerWait`"), Requirement 6 AC 5, AC 7.
+  // - "a blank note writes no Notes: line" — Pre: the same kind of wait.
+  //   Call: `POST .../answer` with `note: '   '` (whitespace only).
+  //   Observable: 200, and `questions.md` has no `Notes:` line. Source:
+  //   design C4 ("trims it, and passes it on only when non-empty"); this
+  //   already holds at base today (the route reads no `note` field at all,
+  //   so a Notes line never appears regardless of its value) — no existing
+  //   assertion in this file sends a `note` key at all, so this is a fresh
+  //   regression guard for the trim-then-conditional-pass branch, not a red
+  //   test (see the report).
+  it('POST answer with a note answers 200 and the receipt carries it', async () => {
+    const wait = await seedGateA();
+
+    const res = await realFetch(url(`/${wait.id}/answer`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ answers: { q1: 'Yes' }, by: 'operator', note: 'watch the budget' }),
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).ok).toBe(true);
+
+    const receipt = await fsp.readFile(join(specDir, 'questions.md'), 'utf-8');
+    expect(receipt).toContain('Notes: watch the budget');
+  });
+
+  it('POST answer with a blank note writes the receipt with no Notes: line (regression guard)', async () => {
+    const wait = await seedGateA();
+
+    const res = await realFetch(url(`/${wait.id}/answer`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ answers: { q1: 'Yes' }, by: 'operator', note: '   ' }),
+    });
+    expect(res.status).toBe(200);
+
+    const receipt = await fsp.readFile(join(specDir, 'questions.md'), 'utf-8');
+    expect(receipt).not.toContain('Notes:');
+  });
+
   it('POST advice attaches advice and 200s', async () => {
     const wait = await seedGateA();
     const res = await realFetch(url(`/${wait.id}/advice`), {

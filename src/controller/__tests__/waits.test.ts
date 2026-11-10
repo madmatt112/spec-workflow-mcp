@@ -227,6 +227,170 @@ describe('answerWait renders the gate receipt', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// dashboard-ruling-view task 5 — answerWait's trailing note and the ruling
+// receipt for escalation/error waits (design C4; Requirement 6 AC 5-7).
+//
+// Contract:
+// - "an escalation wait answered with a note writes a tagged section" — Pre:
+//   an open `escalation` wait with one question tagged `task: 'task-3'`.
+//   Call: `answerWait(id, { ruling: 'approve' }, 'operator', 'watch the
+//   budget')`. Observable: `<specDir>/questions.md` holds `## escalation
+//   <id>`, the question text, `Task: task-3`, `Answer: approve` and `Notes:
+//   watch the budget`, in that order. Source: design C4 ("a new
+//   `rulingSection(record, note)` renders under `## <kind> <wait id>`: per
+//   question `<n>. <text>`, `Task: <task>` when tagged, `Answer: <value>`,
+//   then `Notes: <note>` when sent"), Requirement 6 AC 6.
+// - "an error wait answered with a note writes `## error <id>` the same way,
+//   with no Task line when untagged" — Pre: an open `error` wait with one
+//   untagged question. Call: `answerWait(id, { ... }, 'operator', 'ok to
+//   retry')`. Observable: `questions.md` holds `## error <id>`, the question
+//   text, `Answer: retry`, `Notes: ok to retry`, and no `Task:` line. Source:
+//   design C4, Requirement 6 AC 6.
+// - "a second escalation wait keeps the first wait's section" — Pre: two
+//   answered escalation waits with different ids. Call: `answerWait` on each
+//   with a note. Observable: `questions.md` holds both `## escalation <id>`
+//   headings and both `Task:` lines. Source: Requirement 6 AC 6 ("A later
+//   section SHALL never replace an earlier wait's section"); `upsertSection`
+//   keys on the full heading, which differs per wait id.
+// - "a gate wait answered with a note adds a Notes line" — Pre: an open
+//   `gate-a` wait. Call: `answerWait(id, answers, 'operator', 'watch the
+//   budget')`. Observable: the last non-blank line of `questions.md` is
+//   `Notes: watch the budget`. Source: Requirement 6 AC 7 first sentence,
+//   design C4 ("plus a last line `Notes: <note>` when sent").
+// - "the note ledger row ends with the note" — Pre: an open `gate-a` wait.
+//   Call: `answerWait(id, answers, 'operator', 'watch the budget')`.
+//   Observable: the last `harness-events.jsonl` row's `text` ends with `;
+//   note: watch the budget`. Source: Requirement 6 AC 7 second sentence,
+//   design C4 (`noteText` appends `; note: <note>`).
+//
+// Folded: "a gate answer with no note writes the receipt and row unchanged"
+// (task 5 Success, regression guard) is covered by the existing, unchanged
+// "answerWait renders the gate receipt" tests above (:182-227), which never
+// send a note — not a new red test, per the task text's own call-out.
+
+describe('answerWait writes the ruling receipt for escalation and error waits (Requirement 6 AC 6)', () => {
+  it('an escalation wait answered with a note writes a tagged section with Task, Answer and Notes, in order', async () => {
+    const record = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 3', free: true, task: 'task-3' }],
+    });
+
+    await answerWait(record.id, { ruling: 'approve' }, 'operator', 'watch the budget');
+
+    const written = await fs.readFile(join(specDir, 'questions.md'), 'utf-8');
+    const heading = `## escalation ${record.id}`;
+    expect(written).toContain(heading);
+    expect(written).toContain('Rule on task 3');
+    expect(written).toContain('Task: task-3');
+    expect(written).toContain('Answer: approve');
+    expect(written).toContain('Notes: watch the budget');
+
+    const headingIdx = written.indexOf(heading);
+    const textIdx = written.indexOf('Rule on task 3', headingIdx);
+    const taskIdx = written.indexOf('Task: task-3', textIdx);
+    const answerIdx = written.indexOf('Answer: approve', taskIdx);
+    const notesIdx = written.indexOf('Notes: watch the budget', answerIdx);
+    expect(headingIdx).toBeGreaterThanOrEqual(0);
+    expect(textIdx).toBeGreaterThan(headingIdx);
+    expect(taskIdx).toBeGreaterThan(textIdx);
+    expect(answerIdx).toBeGreaterThan(taskIdx);
+    expect(notesIdx).toBeGreaterThan(answerIdx);
+  });
+
+  it('an error wait answered with a note writes `## error <id>` the same way, with no Task line when untagged', async () => {
+    const errorText = 'step implementation failed inside the controller: boom';
+    const record = await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: DRIVE_CRASH_QUESTION, text: errorText, options: ['retry', 'abandon'] }],
+    });
+
+    await answerWait(record.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator', 'ok to retry');
+
+    const written = await fs.readFile(join(specDir, 'questions.md'), 'utf-8');
+    expect(written).toContain(`## error ${record.id}`);
+    expect(written).toContain(errorText);
+    expect(written).toContain('Answer: retry');
+    expect(written).toContain('Notes: ok to retry');
+    expect(written).not.toContain('Task:');
+  });
+
+  it("a second escalation wait keeps the first wait's section", async () => {
+    const first = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 3', free: true, task: 'task-3' }],
+    });
+    await answerWait(first.id, { ruling: 'approve' }, 'operator', 'first note');
+
+    const second = await createWait({
+      kind: 'escalation',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'ruling', text: 'Rule on task 9', free: true, task: 'task-9' }],
+    });
+    await answerWait(second.id, { ruling: 'retry' }, 'operator', 'second note');
+
+    const written = await fs.readFile(join(specDir, 'questions.md'), 'utf-8');
+    expect(written).toContain(`## escalation ${first.id}`);
+    expect(written).toContain(`## escalation ${second.id}`);
+    expect(written).toContain('Task: task-3');
+    expect(written).toContain('Task: task-9');
+  });
+});
+
+describe('answerWait carries the note into the gate receipt and the ledger row (Requirement 6 AC 7)', () => {
+  it('adds `Notes: <note>` as the last line of the Gate A section when a note is sent', async () => {
+    const record = await createWait({
+      kind: 'gate-a',
+      runId: 'run-20261011-120000',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: GATE_A_QUESTIONS,
+    });
+
+    await answerWait(record.id, { q1: 'No, ask first', q2: 'Both' }, 'operator', 'watch the budget');
+
+    const written = await fs.readFile(join(specDir, 'questions.md'), 'utf-8');
+    const lines = written.replace(/\s+$/, '').split('\n');
+    expect(lines[lines.length - 1]).toBe('Notes: watch the budget');
+    expect(written).toContain('## Gate A');
+    expect(written).toContain('Answer: No, ask first');
+  });
+
+  it('ends the ledger `note` row with `; note: <note>` when a note is sent', async () => {
+    const record = await createWait({
+      kind: 'gate-a',
+      runId: 'run-20261011-120000',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: GATE_A_QUESTIONS,
+    });
+
+    await answerWait(record.id, { q1: 'No, ask first', q2: 'Both' }, 'operator', 'watch the budget');
+
+    const ledger = await fs.readFile(join(specDir, 'harness-events.jsonl'), 'utf-8');
+    const lines = ledger.trim().split('\n').filter(Boolean);
+    const note = JSON.parse(lines[lines.length - 1]);
+    expect((note.text as string).endsWith('; note: watch the budget')).toBe(true);
+  });
+});
+
 describe('retro-plan is stored only', () => {
   it('writes the record but renders no receipt and appends no note', async () => {
     const record = await createWait({
