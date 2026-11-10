@@ -113,7 +113,7 @@ import type { RunRecord, WaitRecord } from '../src/controller/state.js';
  *    never rendered at base because `HomePage` hard-codes `stage={null}`);
  *    once the run leaves `waiting` the view returns to the board, with
  *    `band-needs-you` visible again, `wait-tile-<id>` at count 0 and
- *    `run-tile-<runId>` showing `run-status-<runId>` "paused"; the stored
+ *    `run-tile-<runId>` visible in Running, reading "paused"; the stored
  *    wait answer has `by: "operator"` and a value of the ruling text, a
  *    blank line, "Notes: " and the note; `questions.md` gains a
  *    `## escalation <id>` section holding the same ruling and note text.
@@ -735,8 +735,9 @@ test('(task 12) a ruling with a note writes the folded answer and questions.md, 
 
     await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId(`wait-tile-${waitId}`)).toHaveCount(0);
-    await expect(page.getByTestId(`run-tile-${runId}`)).toBeVisible();
-    await expect(page.getByTestId(`run-status-${runId}`)).toContainText('paused');
+    const runTile = page.getByTestId(`run-tile-${runId}`);
+    await expect(runTile).toBeVisible();
+    await expect(runTile).toContainText('paused');
   } finally {
     await removeWaitRecord(waitId);
     await removeRunRecord(runDir);
