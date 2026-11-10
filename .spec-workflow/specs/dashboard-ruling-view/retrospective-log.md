@@ -94,3 +94,13 @@ Cost: see the ledger
 retrospective compiled: 11 findings, 9 proposals, 1 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261109-030116 8cb9ab85
 Cost: 2 spawns
+
+## 2026-11-10T13:40:29Z · closeout · store batch 1 · gotcha
+Eval case tdd-root-walk-scope targets harness/evals/, outside .spec-workflow; not committable from this main store-1 batch (worktree sessions refuse .spec-workflow; harness/ needs worktree-per-change). It lands in the harness-worktree batch with npm test. Details: /tmp/scratchpad/sdd/dashboard-ruling-view/closeout-store-1-notes.md
+Evidence: batch 1 · mark run-20261109-030116 7956c07e
+Cost: implementer
+
+## 2026-11-10T13:40:36Z · closeout · store batch 1 · cleanup
+store batch 1: 1 done of 1, 0 fix round(s)
+Evidence: batch 1 · mark run-20261109-030116 06ecf37b
+Cost: 1 implementer spawn(s)

@@ -241,3 +241,19 @@
 {"ts":"2026-11-10T05:00:31.433Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-11-10T05:00:31.434Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"retro: 9 proposals for 11 findings"}
 {"ts":"2026-11-10T05:00:31.435Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"11 findings, 9 proposals"}
+{"ts":"2026-11-10T13:36:59.800Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/9"}
+{"ts":"2026-11-10T13:36:59.805Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P2","title":"P2 (F2) — Task 1 negative tests shipped as regression guards."}
+{"ts":"2026-11-10T13:36:59.806Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P2","outcome":"skipped"}
+{"ts":"2026-11-10T13:36:59.806Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P7","title":"P7 (F7) — Coordinator escalation on task 11's File list."}
+{"ts":"2026-11-10T13:36:59.806Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-11-10T13:36:59.806Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P8","title":"P8 (F8) — Stale-stage bug deferred as a harness-owned info-finding, not escalated."}
+{"ts":"2026-11-10T13:36:59.806Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P8","outcome":"skipped"}
+{"ts":"2026-11-10T13:36:59.806Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P9","title":"P9 (F9) — The `kind: e2e` crash was quick-fixed and the remainder deferred."}
+{"ts":"2026-11-10T13:36:59.807Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P9","outcome":"skipped"}
+{"ts":"2026-11-10T13:36:59.820Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.pick","task":"P1","title":"P1 (F1) — Root-walking Success grep caught a sibling task's test comment."}
+{"ts":"2026-11-10T13:36:59.868Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-10T13:40:29.072Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-implementer","input":"26","output":"16507","cacheWrite":"71244","cacheRead":"683383","tokens":"771160","cacheWrite5m":"0","cacheWrite1h":"71244","model":"claude-opus-4-8"}
+{"ts":"2026-11-10T13:40:29.072Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-11-10T13:40:29.095Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P1 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-10T13:40:36.291Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-11-10T13:40:36.313Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P1","outcome":"done"}
