@@ -310,16 +310,17 @@ describe('ruling.ts (src/dashboard_frontend/src/modules/shell/ruling.ts)', () =>
 
     // Criterion "answerPayload ... adds proposal: keys for retro-plan"
     // (task 10 Success; design.md:102 "A retro-plan wait adds the
-    // proposal:<i> keys as today (AnswerSheet.tsx:254-257)").
+    // proposal:<i> keys as today", carried forward from the retired
+    // answer sheet's retro-plan proposal toggle).
     //   Pre-condition: a `retro-plan` wait with two proposals and picks
     //   already carrying `proposal:0`/`proposal:1` values.
     //   Test: answerPayload(wait, picks, texts, notes) with empty notes.
     //   Observable result: the returned answers include `proposal:0` and
     //   `proposal:1` with the picks' values, alongside the question answer.
     //   Expected-value source: design.md:102's proposal-key clause, read
-    //   against the base behaviour it carries forward at
-    //   AnswerSheet.tsx:254-257 (`answers[proposal:${i}] = approved[i] ?
-    //   'approve' : 'drop'`).
+    //   against the base behaviour it carries forward from the retired
+    //   answer sheet's retro-plan proposal toggle (`answers[proposal:${i}]
+    //   = approved[i] ? 'approve' : 'drop'`).
     it('adds proposal: keys for retro-plan', () => {
       const wait = rulingWaitFixture({
         id: 'w1', kind: 'retro-plan', questions: [{ id: 'q1', free: true }],
