@@ -113,6 +113,12 @@ node-20 fields.
   symbol in the task's `File:` list — a comment hit counts. The tasks-phase review rejects
   a task whose root-walking scrub omits a file holding the symbol: no implementer edit can
   move a file-outside-list verdict, so the task would stall on it (retro P12).
+  A root-walking Success grep for a retired symbol is scoped to the shipping source it
+  guards (source globs only, or `__tests__` excluded), never the bare tree: a match in a
+  sibling task's test file or comment prose does not count and is not listed — scope the
+  grep so it cannot match one. This also covers a sibling test written mid-run that no
+  author could have listed at tasks-authoring time, removing the class. The tasks-phase
+  review rejects an unscoped retired-symbol grep (retro P1).
 
 ## Lint false positives
 
