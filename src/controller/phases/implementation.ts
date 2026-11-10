@@ -757,10 +757,11 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       if (!tddOff && authorFiles.length > 0) {
         values.authorFiles = authorFiles.join(', ');
         values.authorReport = authorReport;
-      } else if (marked) {
-        // A marked task routed implementer-only (red-impossible on every
-        // criterion, or nothing committed): the brief tool requires both keys on
-        // a marked task, so pass them empty; the brief then has no red tests.
+      } else if (task.tests && task.tests.length > 0) {
+        // A task with a `- Test:` seam routed implementer-only (red-impossible on
+        // every criterion, nothing committed, or a `kind: e2e` block): the brief
+        // tool treats any task with tests as marked and requires both keys, so
+        // pass them empty; the brief then has no red tests.
         values.authorFiles = '';
         values.authorReport = '';
       }
