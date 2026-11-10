@@ -915,6 +915,7 @@ describe('runImplementationPhase', () => {
 
   it('a never-logged error stop carries the task and its commits with no detail, and leaves the task in progress (R2 AC 3)', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']);
     const neverLogged: StubRun = {
       result: result({ logged: 'no', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' }),
     };
@@ -925,7 +926,11 @@ describe('runImplementationPhase', () => {
     expect(outcome.result).toBe('error');
     expect(outcome.reason).toMatch(/never logged/);
     expect(outcome.task).toBe('1');
-    expect(outcome.commits).toEqual([]);
+    // No implementer commit happens on this path; the only commit since pick is
+    // the stop's own spec-store housekeeping commit (HANDOFF.md etc., unavoidable
+    // since `stop()` always commits on its way out).
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(outcome.commits).toEqual(expectedCommits);
     expect(outcome.detail).toBeUndefined();
     expect(taskStatus(fx, '1')).toBe('in-progress');
   }, 60000);
