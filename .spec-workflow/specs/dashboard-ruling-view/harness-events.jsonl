@@ -283,3 +283,9 @@
 {"ts":"2026-11-10T14:06:16.236Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 3","result":"ok","phase":"closeout"}
 {"ts":"2026-11-10T14:06:16.253Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"task.done","task":"P3","outcome":"skipped"}
 {"ts":"2026-11-10T14:06:18.037Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"phase.end","phase":"closeout","result":"closed","state":"items 9/9","note":"2 done, 2 to-do, 5 skipped"}
+{"ts":"2026-11-10T14:06:20.213Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"close-out merge: close-out PR #217 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-10T14:06:53.094Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"close-out merge: close-out PR #217 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #217 of spec-workflow-mcp)"}
+{"ts":"2026-11-10T14:07:23.567Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-11-10T14:07:30.256Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"pr.merged","number":"217","sha":"72bf1e2ce9fee39a5f48ced8a8bbd6572e331ffe","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-11-10T14:07:30.260Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"close-out merge: close-out PR #217 of spec-workflow-mcp merged (merged close-out PR #217 of spec-workflow-mcp via merge)"}
+{"ts":"2026-11-10T14:07:30.263Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"run.end","status":"done"}
