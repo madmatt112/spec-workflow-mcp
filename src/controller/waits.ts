@@ -59,6 +59,10 @@ export interface CreateWaitInput {
   questions: WaitQuestion[];
   /** `retro-plan` only: the proposal lines the operator approves or drops. */
   proposals?: string[];
+  /** The worker report for the task under ruling. */
+  detail?: string;
+  /** The task's commits, for an escalation ruling. */
+  commits?: string[];
 }
 
 /**
@@ -112,6 +116,8 @@ export async function createWait(input: CreateWaitInput): Promise<ControllerWait
     specDir: input.specDir,
   };
   if (input.proposals) record.proposals = input.proposals;
+  if (input.detail) record.detail = input.detail;
+  if (input.commits && input.commits.length > 0) record.commits = input.commits;
   await writeWait(record);
   waitEvents.emit('change', record);
   return record;
@@ -237,9 +243,9 @@ export async function listWaitsForView(): Promise<ControllerWaitRecord[]> {
     .sort((a, b) => b.created.localeCompare(a.created));
 }
 
-/** The view list with the local `specDir` stripped, for the wire (design §17). */
-export async function listWaitsForWire(): Promise<Omit<ControllerWaitRecord, 'specDir'>[]> {
-  return (await listWaitsForView()).map(({ specDir: _specDir, ...rest }) => rest);
+/** The view list with the local `specDir` and `commits` stripped, for the wire (design §17). */
+export async function listWaitsForWire(): Promise<Omit<ControllerWaitRecord, 'specDir' | 'commits'>[]> {
+  return (await listWaitsForView()).map(({ specDir: _specDir, commits: _commits, ...rest }) => rest);
 }
 
 // ---------------------------------------------------------------------------
