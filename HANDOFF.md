@@ -1615,4 +1615,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 12/13, last commit ad04049f, next task 13 |
+| State | tasks 13/13, last commit ad04049f, next completion gate |
