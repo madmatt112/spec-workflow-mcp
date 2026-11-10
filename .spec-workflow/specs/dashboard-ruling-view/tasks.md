@@ -92,7 +92,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 4 and 1 �
   - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.10_
   - _Prompt: Task: Per design C6 and design D4, D5 (requirement 4 AC 2 to AC 8, AC 10), create `src/dashboard/shell/wait-diff.ts` with `readWaitDiff`, `parseShow` and `capDiff` exactly as design C6 pins them, returning the `WaitDiff` type task 6 adds. git runs through `execFile` with an argument array, `cwd` the worktree, `scrubbedGitEnv()` (`src/core/git-utils.ts:45-51`) and one shared time budget | Restrictions: No shell string; no cache; no write | Success: `parseShow` reads hash and subject, an added, a removed and a context line, skips a `\` line, and marks a binary file; `capDiff` keeps hunks for 60 files and lists the 61st under overflow with its count, keeps 400 lines of a longer file with `droppedLines` the rest, and moves files to overflow while the JSON is over 512 KiB; `readWaitDiff` gives `ok` with the commit's short hash, subject and added lines; a rewritten hash is listed not found while the other commit renders; an invalid hash never reaches git and is listed not found; no run gives `run-gone`; no commits gives `no-commits`; a missing worktree gives `worktree-gone`; `timeoutMs: 1` gives `unreadable` whose `error` holds no absolute path; `npx tsc --noEmit` and `npx vitest run src/dashboard/shell/__tests__/wait-diff.test.ts` pass_
 
-- [ ] 9. Add the task row and diff routes
+- [x] 9. Add the task row and diff routes
   - File: src/dashboard/multi-server.ts
   - File: src/dashboard/__tests__/controller-waits-routes.test.ts
   - Test: src/dashboard/__tests__/controller-waits-routes.test.ts — `GET /api/controller/waits/:id/task`

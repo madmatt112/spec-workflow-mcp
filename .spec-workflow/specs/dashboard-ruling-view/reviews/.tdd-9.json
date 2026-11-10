@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/controller-waits-routes.test.ts"],"seams":{"src/dashboard/__tests__/controller-waits-routes.test.ts":"GET /api/controller/waits/:id/task"},"redCommit":"a369476ffaa9d85e20ad9901b0b2d23af72bec70","baseSha":"31b5f0dcb5789856b8ac9648144518f24e1dde83","base":"assertion-red","head":"pass","amended":false,"judged":null}
