@@ -210,7 +210,11 @@ red-on-base proof uses `tdd-test-command`, `red-on-base` and `red-on-base-setup`
 by running the gates (a bench run, a staging capture, a generated reference), with
 nothing that can fail before the code exists — carries no `- Test:` seam, so the router
 (`isTddMarked`) routes it implementer-only and the checks it names are its pass
-criterion. This stays a drafter-authored exception, not a first-class task kind. The
+criterion. This stays a drafter-authored exception, not a first-class task kind. A task
+whose only test is an end-to-end (Playwright) suite marks this with a standalone
+`kind: e2e` line in its task block — on its own line, never inline in a Purpose line or
+prose — so the router reads it and routes the task implementer-only (the red step cannot
+run before the code exists); the tasks-phase lint flags an inline `kind: e2e`. The
 implementer implements the task and commits. The review gate runs
 in-process (`review-task`): the touched paths against the sensitive, generated and prose
 path lists, the checks the implementer reported, the typecheck, the hygiene signals and a
