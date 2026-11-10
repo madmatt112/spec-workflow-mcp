@@ -223,6 +223,10 @@ export interface WaitRecord {
   /** The second-opinion run's progress; cleared once the opinion attaches. */
   opinionStatus?: WaitOpinionStatus;
   state: WaitState;
+  /** The worker report for the task under ruling. */
+  detail?: string;
+  /** The task's commits, for an escalation ruling. */
+  commits?: string[];
 }
 
 /** `queue.json`: run ids waiting for a slot, in order. */

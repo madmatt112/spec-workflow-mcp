@@ -3,7 +3,7 @@ import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
 import { needsYou, nextProjects, nextTiles, running, stopped } from './board';
 import { ActionTile, NextTile, RunTile, WaitTile } from './tiles';
-import { AnswerSheet } from './AnswerSheet';
+import { RulingView } from './RulingView';
 import { useStages } from './useStages';
 import { useNextViews } from './useNextViews';
 import { buildLaunchInput } from './harness';
@@ -55,6 +55,7 @@ export function HomePage() {
   const { controllerWaits, controllerRuns, controllerActions } = useShell();
   const [tick, setTick] = useState(Date.now());
   const [openWaitId, setOpenWaitId] = useState<string | null>(null);
+  const [openWaitSnapshot, setOpenWaitSnapshot] = useState<ControllerWait | null>(null);
   const stages = useStages();
 
   useEffect(() => {
@@ -125,7 +126,7 @@ export function HomePage() {
           runs={controllerRuns}
           projectName={projectName(wait.project)}
           now={tick}
-          onAnswer={() => setOpenWaitId(wait.id)}
+          onAnswer={() => { setOpenWaitId(wait.id); setOpenWaitSnapshot(wait); }}
         />
       ),
     })),
@@ -145,11 +146,34 @@ export function HomePage() {
     })),
   ].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
 
-  // Re-derived on each render: gone, answered or filtered, and the board returns.
-  const openWait = useMemo(
+  // Re-derived on each render while still in needsYou; once it leaves (answered,
+  // gone or filtered) the last snapshot keeps the view up while the `answer`
+  // stage holds `wait:<id>` (design C9/D10), so the operator sees the answer
+  // land before the board returns.
+  const liveOpenWait = useMemo(
     () => (openWaitId ? needsYouWaits.find((w) => w.id === openWaitId) ?? null : null),
     [openWaitId, needsYouWaits],
   );
+  useEffect(() => {
+    if (liveOpenWait) setOpenWaitSnapshot(liveOpenWait);
+  }, [liveOpenWait]);
+  const answerKey = openWaitId ? `wait:${openWaitId}` : null;
+  const openWait = liveOpenWait
+    ?? (answerKey && stages.stages.has(answerKey) ? openWaitSnapshot : null);
+  const answerRun = openWait ? controllerRuns.find((r) => r.id === openWait.run) : undefined;
+  const answerStage = answerKey ? stages.retained(answerKey, { run: answerRun }) : null;
+
+  useEffect(() => {
+    if (answerStage?.phase === 'done') {
+      setOpenWaitId(null);
+      setOpenWaitSnapshot(null);
+    }
+  }, [answerStage?.phase]);
+
+  function backToBoard() {
+    setOpenWaitId(null);
+    setOpenWaitSnapshot(null);
+  }
 
   if (openWait) {
     return (
@@ -157,14 +181,23 @@ export function HomePage() {
         <button
           type="button"
           className="text-sm font-medium text-(--text-secondary) underline-offset-2 hover:text-(--text-primary) hover:underline"
-          onClick={() => setOpenWaitId(null)}
+          onClick={backToBoard}
         >
           {'Back to board'}
         </button>
-        <AnswerSheet
+        <RulingView
           wait={openWait}
+          runs={controllerRuns}
           projectName={projectName(openWait.project)}
-          onDone={() => setOpenWaitId(null)}
+          now={tick}
+          stage={answerStage}
+          onAnswer={(body) => stages.press(
+            answerKey!,
+            'answer',
+            `/api/controller/waits/${openWait.id}/answer`,
+            'POST',
+            body,
+          )}
         />
       </div>
     );

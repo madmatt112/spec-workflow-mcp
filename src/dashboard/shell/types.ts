@@ -64,6 +64,7 @@ export interface ControllerWaitQuestion {
   free?: boolean;
   recommended?: string;
   reason?: string;
+  task?: string;
 }
 
 export interface ControllerWaitAnswer {
@@ -92,7 +93,52 @@ export interface ControllerWait {
   opinionStatus?: { state: 'running' | 'failed'; at: string; reason?: string };
   state: 'open' | 'answered' | 'expired';
   proposals?: string[];
+  detail?: string;
 }
+
+/** Live task-row read for the ruling view (design C5, Data Models). */
+export type WaitTaskRow =
+  | {
+      state: 'ok';
+      id: string;
+      title: string;
+      success: string | null;
+      tdd: boolean;
+      risk: 'low' | 'medium' | 'high' | null;
+      files: string[];
+    }
+  | { state: 'not-found'; id: string }
+  | { state: 'no-task' };
+
+/** One hunk of a diff file (design C6, Data Models). */
+export interface DiffHunk {
+  header: string;
+  lines: { kind: 'add' | 'del' | 'ctx'; text: string }[];
+}
+
+/** One file of a diff commit (design C6, Data Models). */
+export interface DiffFile {
+  path: string;
+  binary: boolean;
+  hunks: DiffHunk[];
+  droppedLines: number;
+}
+
+/** One commit of a wait diff (design C6, Data Models). */
+export interface DiffCommit {
+  hash: string;
+  subject: string;
+  found: boolean;
+  files: DiffFile[];
+}
+
+/** Live diff read for the ruling view (design C6, Data Models). */
+export type WaitDiff =
+  | { state: 'ok'; commits: DiffCommit[]; overflow: { count: number; paths: string[] } }
+  | { state: 'worktree-gone' }
+  | { state: 'run-gone' }
+  | { state: 'no-commits' }
+  | { state: 'unreadable'; error: string };
 
 /**
  * One read of a pull request by the merge pass, path-free for the wire (design

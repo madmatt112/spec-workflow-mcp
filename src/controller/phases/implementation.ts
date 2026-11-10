@@ -50,7 +50,9 @@ import {
   SECURITY_SCHEMA, type SecurityFinding, type SecuritySuspicion, type SecurityState,
 } from './security-pass.js';
 import { parseSensitivePaths, isSensitivePath } from '../../core/gate-rules.js';
-import type { ToolContext } from '../../types.js';
+import { TaskReviewManager } from '../../core/task-review-manager.js';
+import { buildRulingDetail, rulingCommits } from '../ruling-detail.js';
+import type { ToolContext, TaskReview } from '../../types.js';
 
 /** Fix rounds per task before the adjudicator rules (SKILL.md step 5). */
 const FIX_ROUNDS_CAP = 3;
@@ -137,6 +139,13 @@ export interface ImplementationPhaseOutcome {
   /** The task a `design-defect`/`escalate` stop was about, so its ruling reaches
    * only that task's next brief (tax-lots retro P7). */
   task?: string;
+  /** The task's commits since its pick, red commit first when one exists
+   * (ruling-detail's `rulingCommits`); set only on a `design-defect`, `escalate`
+   * or `error` stop (R2 AC 4). */
+  commits?: string[];
+  /** The worker report and, when one exists, the task review, rendered by
+   * ruling-detail's `buildRulingDetail` (R2 AC 6, AC 7); set on the same three stops. */
+  detail?: string;
   tasks: { done: number; total: number };
   pr?: { number: number; url?: string };
   /** The open security findings when `result` is `security-open` (C6). */
@@ -238,6 +247,12 @@ function flagText(flag: string, ...sources: (string | null | undefined)[]): stri
   return undefined;
 }
 
+/** A worker's report for ruling-detail's `buildRulingDetail`: the result text, or the
+ * structured report when the text is empty. */
+function workerReport(text: string | null | undefined, report: unknown): string {
+  return text || JSON.stringify(report);
+}
+
 /** `RETRO: <category> — <line>` or `<category> — <line>` ⇒ the pair, else undefined. */
 function retroFlag(...sources: (string | null | undefined)[]): { category: string; line: string } | undefined {
   for (const s of sources) {
@@ -253,7 +268,7 @@ const RETRO_CATEGORIES = new Set([
 ]);
 
 /** Is this a `[-]`/`[ ]` task whose `- Test:` seam routes it to the test author? */
-function isTddMarked(task: ParsedTask, block: string): boolean {
+export function isTddMarked(task: ParsedTask, block: string): boolean {
   if (!task.tests || task.tests.length === 0) return false;
   return !/\bkind:\s*e2e\b/i.test(block);
 }
@@ -643,10 +658,37 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   // =========================================================================
   return completionGate();
 
+  /** The evidence `runTaskStep` gathers for `runTask`'s outcome: a getter for the
+   * task's commits (closes over its own `redCommit`/`taskCommits`) and the raw
+   * worker report text at the site of a stop. */
+  type TaskEvidence = { commits?: () => string[]; report?: string };
+
   // -------------------------------------------------------------------------
   // One task, from pick to `[x]`. Returns an outcome only on a stop.
+  // Wraps `runTaskStep`: on a `design-defect`, `escalate` or `error` stop it
+  // adds `task`, `commits` and `detail` from the evidence `runTaskStep`
+  // gathered, built by ruling-detail's (task 2) `rulingCommits` and
+  // `buildRulingDetail` against the task's latest review (a throw from
+  // `TaskReviewManager` reads as no review).
   // -------------------------------------------------------------------------
   async function runTask(task: ParsedTask): Promise<ImplementationPhaseOutcome | undefined> {
+    const evidence: TaskEvidence = {};
+    const outcome = await runTaskStep(task, evidence);
+    if (!outcome || (outcome.result !== 'design-defect' && outcome.result !== 'escalate' && outcome.result !== 'error')) {
+      return outcome;
+    }
+    const commits = evidence.commits ? evidence.commits() : [];
+    let review: TaskReview | null = null;
+    try {
+      review = await new TaskReviewManager(ctx.specDir).getLatestReview(task.id);
+    } catch {
+      review = null;
+    }
+    const detail = buildRulingDetail(evidence.report, review);
+    return { ...outcome, task: outcome.task ?? task.id, commits, detail };
+  }
+
+  async function runTaskStep(task: ParsedTask, evidence: TaskEvidence): Promise<ImplementationPhaseOutcome | undefined> {
     const id = task.id;
     const block = taskBlock(readFileSync(tasksPath, 'utf-8'), id) ?? '';
     const resumed = task.status === 'in-progress';
@@ -667,6 +709,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     /** The task's commits since its pick, oldest first, minus the author's red commit. */
     const taskCommits = (): string[] => (gitTry(ctx.codeRoot, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]) ?? '')
       .split('\n').filter((c) => c && c !== redCommit);
+    evidence.commits = () => rulingCommits(redCommit, taskCommits());
 
     // 1b. Author (marked tasks only). A resumed task whose red commit exists
     // skips the author (SKILL.md step 1b).
@@ -701,7 +744,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         const report = (step.result.structuredOutput ?? {}) as AuthorReport;
         const text = step.result.resultText;
         const seam = flagText('SEAM-DEFECT', report.flag, text);
-        if (seam) return stop('design-defect', seam, { task, category: 'deviation' });
+        if (seam) {
+          evidence.report = workerReport(text, report);
+          return stop('design-defect', seam, { task, category: 'deviation' });
+        }
         const redImpossible = flagText('RED-IMPOSSIBLE', report.flag, text);
         const allImpossible = report.redImpossible === 'all' || (!!redImpossible && !report.commit?.match(/^[0-9a-f]{7,40}$/));
         if (allImpossible) {
@@ -786,7 +832,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         report = (step.result.structuredOutput ?? {}) as ImplementerReport;
         text = step.result.resultText;
         const flagged = await routeImplementerFlags(task, report, text);
-        if (flagged) return flagged;
+        if (flagged) {
+          evidence.report = workerReport(text, report);
+          return flagged;
+        }
         if ((await logManager.getTaskLogs(id)).length > 0) break;
         if (attempt === 1) {
           // `logged: no` (SKILL.md step 3): one fresh implementer with the brief plus the order.
@@ -945,7 +994,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       const fixReport = (fix.result.structuredOutput ?? {}) as ImplementerReport;
       const flagged = await routeImplementerFlags(task, fixReport, fix.result.resultText,
         variant === 'gate' ? { round: rounds, reasons: gate.reasons } : undefined);
-      if (flagged) return flagged;
+      if (flagged) {
+        evidence.report = workerReport(fix.result.resultText, fixReport);
+        return flagged;
+      }
       const fixChecks = readChecksFile(fixReport.checksFile, ctx.codeRoot);
       if (fixChecks) { checks = fixChecks; fixChecks.forEach((c) => checksRun.add(c)); }
       implementerFiles = (await logManager.getTaskLogs(id)).flatMap((e) => [...e.filesModified, ...e.filesCreated]);

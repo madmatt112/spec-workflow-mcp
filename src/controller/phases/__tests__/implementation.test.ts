@@ -15,6 +15,7 @@ import { ImplementationLogManager } from '../../../dashboard/implementation-log-
 import { parseTasksFromMarkdown } from '../../../core/task-parser.js';
 import { approvalsHandler } from '../../../tools/approvals.js';
 import { DeferralStorage } from '../../../core/deferral-storage.js';
+import { TaskReviewManager } from '../../../core/task-review-manager.js';
 import type { RunRecord } from '../../state.js';
 
 // Contract for step (c2) (docs/controller-design.md §5 "Implementation",
@@ -842,6 +843,7 @@ describe('runImplementationPhase', () => {
   it('a DESIGN-DEFECT flag reverts the task and stops the phase', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     writeScript(fx, [await implRun(fx, '1', 'src/a.js', { flag: 'DESIGN-DEFECT: the design names a seam that does not exist' })]);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']);
 
     const outcome = await runImplementationPhase(ctxFor(fx));
 
@@ -852,6 +854,14 @@ describe('runImplementationPhase', () => {
     expect(end).toMatchObject({ phase: 'implementation', result: 'design-defect' });
     expect(readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8')).toContain('· deviation');
     expect(git(fx.repo, ['log', '--format=%s'])).toContain(`docs(sdd): ${fx.spec} implementation design-defect`);
+
+    // R2 AC 3, AC 4, AC 5: the outcome carries the task, its commits since pick, and the worker report.
+    expect(outcome.task).toBe('1');
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(expectedCommits.length).toBeGreaterThan(0);
+    expect(outcome.commits).toEqual(expectedCommits);
+    expect(outcome.detail).toMatch(/^## Worker report/);
+    expect(outcome.detail).toContain('the design names a seam that does not exist');
   }, 60000);
 
   it('re-enters after a stop, writes a new phase.start, and hands the operator ruling to the implementer', async () => {
@@ -861,8 +871,17 @@ describe('runImplementationPhase', () => {
       await implRun(fx, '1', 'src/a.js'),
       e2eRun('pass'),
     ]);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']);
     const first = await runImplementationPhase(ctxFor(fx));
     expect(first.result).toBe('escalate');
+
+    // R2 AC 3, AC 4, AC 5: the same three fields as a DESIGN-DEFECT stop.
+    expect(first.task).toBe('1');
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(expectedCommits.length).toBeGreaterThan(0);
+    expect(first.commits).toEqual(expectedCommits);
+    expect(first.detail).toMatch(/^## Worker report/);
+    expect(first.detail).toContain('the vendor probe failed');
 
     const second = await runImplementationPhase(ctxFor(fx, { operatorRulings: [{ value: 'Use the sandbox endpoint instead.' }] }));
     expect({ result: second.result, reason: second.reason }).toEqual({ result: 'complete', reason: undefined });
@@ -870,6 +889,82 @@ describe('runImplementationPhase', () => {
     expect(r.filter((e) => e.type === 'phase.start')).toHaveLength(2);
     expect(r.filter((e) => e.type === 'phase.start')[1].mode).toBe('repair');
     expect(readFileSync(join(fx.scratch, 'impl-brief-task-1.md'), 'utf8')).toContain('## Operator rulings\n- Use the sandbox endpoint instead.');
+  }, 60000);
+
+  it('a SEAM-DEFECT stop carries commits starting with the task\'s red commit (R2 AC 4)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })]);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']);
+    const authorRun: StubRun = {
+      commands: [`mkdir -p test && echo "red" > test/a.test.js && git add test/a.test.js && git commit -qm "test(${fx.spec}): task 1 red"`],
+      result: result({
+        commit: 'see git', files: ['test/a.test.js'], tests: 1, folds: 'none',
+        flag: 'SEAM-DEFECT: the call cannot be reached as the design describes it', redImpossible: 'none', retro: 'none',
+      }),
+    };
+    writeScript(fx, [authorRun]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    const redCommit = git(fx.repo, ['log', '-1', '--format=%H', `--grep=^test(${fx.spec}): task 1 red$`]);
+    expect(redCommit).toBeTruthy();
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(outcome.commits).toEqual(expectedCommits);
+    expect(outcome.commits?.[0]).toBe(redCommit);
+  }, 60000);
+
+  it('a never-logged error stop carries the task and its commits with no detail, and leaves the task in progress (R2 AC 3)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']);
+    const neverLogged: StubRun = {
+      result: result({ logged: 'no', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' }),
+    };
+    writeScript(fx, [neverLogged, neverLogged]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('error');
+    expect(outcome.reason).toMatch(/never logged/);
+    expect(outcome.task).toBe('1');
+    // No implementer commit happens on this path; the only commit since pick is
+    // the stop's own spec-store housekeeping commit (HANDOFF.md etc., unavoidable
+    // since `stop()` always commits on its way out).
+    const expectedCommits = git(fx.repo, ['log', '--reverse', '--format=%H', `${preHead}..HEAD`]).split('\n').filter(Boolean);
+    expect(outcome.commits).toEqual(expectedCommits);
+    expect(outcome.detail).toBeUndefined();
+    expect(taskStatus(fx, '1')).toBe('in-progress');
+  }, 60000);
+
+  it('adds the task review after the worker report when a review exists for the task (R2 AC 6, AC 7)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const reviewManager = new TaskReviewManager(fx.specDir);
+    await reviewManager.saveReview({
+      taskId: '1', specName: fx.spec, verdict: 'findings', summary: 'Needs a small fix.',
+      findings: [{ severity: 'warning', title: 'Loose check', description: 'tighten it' }],
+    });
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js', { flag: 'DESIGN-DEFECT: seam missing' })]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.detail).toBeDefined();
+    const workerIdx = outcome.detail!.indexOf('## Worker report');
+    const reviewIdx = outcome.detail!.indexOf('## Task review');
+    expect(workerIdx).toBe(0);
+    expect(reviewIdx).toBeGreaterThan(workerIdx);
+    expect(outcome.detail).toContain('v1 — findings');
+    expect(outcome.detail).toContain('Needs a small fix.');
+  }, 60000);
+
+  it('leaves no detail or commits on a complete outcome (regression guard)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('complete');
+    expect(outcome.detail).toBeUndefined();
+    expect(outcome.commits).toBeUndefined();
   }, 60000);
 
   it('repairs a failed end-to-end verification, then passes', async () => {

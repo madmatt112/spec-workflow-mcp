@@ -623,9 +623,11 @@ async function waitAnd(
   deps: RunDeps, run: RunRecord, ledger: RunLedger,
   kind: ControllerWaitRecord['kind'], specDir: string,
   questions: ControllerWaitRecord['questions'], proposals?: string[],
+  evidence?: { detail?: string; commits?: string[] },
 ): Promise<void> {
   await createWait({
     kind, runId: run.id, projectId: run.project, spec: run.spec, specDir, questions, proposals,
+    detail: evidence?.detail, commits: evidence?.commits,
   });
   await save(deps, run, { status: 'waiting', inFlight: undefined });
 }
@@ -1266,7 +1268,7 @@ async function handleImplementationOutcome(
       free: true,
       // Tag the ruling to its task so it reaches only that task's next brief (retro P7).
       ...(outcome.task ? { task: outcome.task } : {}),
-    }]);
+    }], undefined, { detail: outcome.detail, commits: outcome.commits });
     return 'stop';
   }
   if (outcome.result === 'security-open') {
@@ -1304,7 +1306,8 @@ async function handleImplementationOutcome(
     id: 'error',
     text: `Implementation ${outcome.result} (tasks ${outcome.tasks.done}/${outcome.tasks.total}): ${outcome.reason ?? 'unknown'}. Retry or abandon.`,
     options: ['retry', 'abandon'], recommended: 'retry',
-  }]);
+    ...(outcome.task ? { task: outcome.task } : {}),
+  }], undefined, { detail: outcome.detail, commits: outcome.commits });
   return 'stop';
 }
 
