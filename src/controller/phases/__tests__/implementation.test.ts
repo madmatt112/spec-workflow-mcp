@@ -1102,6 +1102,22 @@ describe('runImplementationPhase', () => {
     expect(readFileSync(join(fx.scratch, 'impl-brief-task-1.md'), 'utf8')).not.toContain('## Red tests (from the test author)');
   }, 60000);
 
+  // A `kind: e2e` block skips the test author, but the brief tool still sees its
+  // `- Test:` line and requires authorFiles/authorReport (swm dashboard-ruling-view
+  // task 7 stopped on "required values 'authorFiles', 'authorReport' missing").
+  it('briefs the implementer of a kind: e2e task that has a Test line', async () => {
+    const md = taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })
+      .replace('Purpose: do the thing.', 'Purpose: do the thing. kind: e2e');
+    fx = await setup([md]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), verifierRun('pass'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    expect(rows(fx).filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement task 1', 'verify task 1', 'end-to-end verification']);
+    expect(readFileSync(join(fx.scratch, 'impl-brief-task-1.md'), 'utf8')).not.toContain('## Red tests (from the test author)');
+  }, 60000);
+
   it('hands the operator rulings to the test author', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })]);
     const authorRun: StubRun = {
