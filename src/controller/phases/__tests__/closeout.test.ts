@@ -323,6 +323,33 @@ describe('runCloseoutPhase', () => {
     expect(rows(fx).some((e) => e.type === 'note' && /^closeout: item P2 not landed, reverted [0-9a-f]{7}$/.test(e.text))).toBe(true);
   }, 60000);
 
+  // Pre-condition: an item names `README.md`; its commit also changes the unnamed
+  // `docs/rules.md`, so the gate fails file-outside-list; the fix round hands it
+  // back with `REQUIRED: docs/rules.md`.
+  // Observable result: the file joins the item's list, the same commit gates
+  // again and passes, the item is done and nothing is reverted (studstats and
+  // decisions-and-launch-guard close-outs reverted correct agent-rules edits).
+  it('re-gates an item on a REQUIRED file its commit touched instead of reverting it', async () => {
+    const p = ['- **P2 (F2) — Add a rule.** Append a line to `README.md` and the rules.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    fx = setup([p]);
+    writeScript(fx, [
+      {
+        commands: [`mkdir -p docs && echo rule >> docs/rules.md && echo P2 >> README.md && git add README.md docs/rules.md && git commit -qm "chore(retro): ${fx.spec} P2 landed"`],
+        result: result({ items: [{ id: 'P2', status: 'done', commit: 'none' }], retro: 'none' }),
+      },
+      { result: result({ items: [{ id: 'P2', status: 'skipped', reason: 'REQUIRED: docs/rules.md — the rule lives there' }], retro: 'none' }) },
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 1, done: 1, todo: 0, skipped: 0 });
+    expect(planText(fx)).toMatch(/^- P2: done — [0-9a-f]{40}$/m);
+    const wt = join(fx.repo, '.claude', 'worktrees', `${fx.spec}-retro`);
+    expect(git(wt, ['log', '--format=%s'])).not.toContain('Revert');
+    expect(rows(fx).some((e) => e.type === 'note' && e.text === 'gate: item P2 REQUIRED docs/rules.md added to its file list')).toBe(true);
+  }, 60000);
+
   it('leaves a commit a landed item shares and notes it on the not-landed item\'s line', async () => {
     const pShare = ['- **P2 (F2) — Fold into P3.** Part of the `README.md` change.', '  Target: product code.', '  Decision: do it.'].join('\n');
     const pDone = ['- **P3 (F3) — Add a README line.** Append one line to `README.md`.', '  Target: product code.', '  Decision: do it.'].join('\n');
