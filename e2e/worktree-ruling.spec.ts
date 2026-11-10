@@ -103,6 +103,47 @@ import type { RunRecord, WaitRecord } from '../src/controller/state.js';
  *    text box is filled.
  *    Source: task 11 Success "a removed worktree shows worktree gone and
  *    answer-submit enables once a ruling is typed"; Requirements 4.5, 6.2.
+ *
+ * 8. (task 12) An untagged `escalation` wait with a free `ruling` question,
+ *    on a real controller run (`pauseRequested` set) whose project, run and
+ *    spec dir are real, writable paths.
+ *    Call: same press, then `answer-text-ruling.fill(ruling)`,
+ *    `ruling-notes.fill(note)`, `answer-submit.click()`.
+ *    Result: `answer-stage` becomes visible (the button's in-place stage,
+ *    never rendered at base because `HomePage` hard-codes `stage={null}`);
+ *    once the run leaves `waiting` the view returns to the board, with
+ *    `band-needs-you` visible again, `wait-tile-<id>` at count 0 and
+ *    `run-tile-<runId>` showing `run-status-<runId>` "paused"; the stored
+ *    wait answer has `by: "operator"` and a value of the ruling text, a
+ *    blank line, "Notes: " and the note; `questions.md` gains a
+ *    `## escalation <id>` section holding the same ruling and note text.
+ *    Source: task 12 Success, first clause; Requirements 6.4, 6.6, 6.8,
+ *    6.11 (folds 6.13's "resumes the run", already a regression guard at
+ *    `src/controller/phases/__tests__/implementation.test.ts:867`, and
+ *    6.14's tile movement, a regression guard per the task's own Note on
+ *    `src/controller/controller.ts:671-673` and
+ *    `src/dashboard_frontend/src/modules/shell/board.ts:34-52`).
+ * 9. (task 12) The same shape of wait as case 8, but the page intercepts
+ *    the answer POST and fulfills it with status 500 and `{ reason }`
+ *    before the request reaches the server.
+ *    Call: same fill and press, with the route installed first.
+ *    Result: `answer-stage` reads "failed: <reason>"; `answer-text-ruling`
+ *    and `ruling-notes` keep their typed values; `answer-submit` is
+ *    enabled again.
+ *    Source: task 12 Success, third clause; Requirement 6.12.
+ * 10. (task 12) A `gate-b` wait with `free: true` options and no
+ *    `recommended`, on a real controller run (`pauseRequested` set).
+ *    Call: same press, then check the second `answer-opt-gate-b` radio
+ *    (leaving its own text box empty), `ruling-notes.fill(note)`,
+ *    `answer-submit.click()`.
+ *    Result: `answer-stage` becomes visible; the stored wait answer's
+ *    value is the picked option alone, with no note text folded in;
+ *    `questions.md`'s `## Gate B` section carries the option as the
+ *    answer and a trailing `Notes: <note>` line.
+ *    Source: task 12 Success, fourth clause; Requirement 6.5 (option alone;
+ *    the receipt's `Notes:` line is design C4's gate rendering, already
+ *    unit-tested at `src/controller/__tests__/waits.test.ts`, exercised
+ *    here through the browser for the first time).
  */
 
 function isoAgo(ms: number): string {
@@ -120,6 +161,11 @@ async function writeWaitRecord(record: WaitRecord & { specDir: string }): Promis
 
 async function removeWaitRecord(id: string): Promise<void> {
   await rm(waitPath(id), { force: true });
+}
+
+/** Re-reads an answered wait record straight off disk (task 12 cases). */
+async function readWaitRecord(id: string): Promise<WaitRecord & { specDir: string; answer?: Record<string, { value: string; by: string; answered: string }> }> {
+  return JSON.parse(await readFile(waitPath(id), 'utf-8'));
 }
 
 const BASE_TOKENS = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
@@ -626,5 +672,174 @@ test('(task 11) a removed worktree shows worktree gone and answer-submit enables
   } finally {
     await removeWaitRecord(waitId);
     await removeRunRecord(runDir);
+  }
+});
+
+test('(task 12) a ruling with a note writes the folded answer and questions.md, then the view returns to the board once the run leaves waiting', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const specDir = mkdtempSync(join(tmpdir(), 'e2e-ruling-stage-spec-'));
+  const waitId = 'e2e-ruling-stage-wait';
+  const runId = 'e2e-ruling-stage-run';
+  const project = 'e2e-ruling-stage-proj';
+  const spec = 'e2e-ruling-stage-spec';
+  const rulingText = 'Approved: ship the banner fix as written.';
+  const noteText = 'Double-checked the comma fix with the style guide.';
+
+  // `pauseRequested` set (design D11): once the real controller here answers
+  // the wait, `onWaitChange` (`src/controller/controller.ts:671-673`) parks
+  // the run `paused` rather than driving it, so it leaves `waiting` without
+  // the suite running a real harness unit.
+  const run = baseRun(runId, project, '/tmp/e2e-ruling-stage-nonexistent', {
+    spec,
+    pauseRequested: isoAgo(5 * 60_000),
+  });
+  const runDir = await writeRunRecord(run);
+
+  const wait: WaitRecord & { specDir: string } = {
+    v: 1,
+    id: waitId,
+    kind: 'escalation',
+    run: runId,
+    project,
+    spec,
+    created: isoAgo(60_000),
+    questions: [{ id: 'ruling', text: 'Design defect: rule on the banner fix.', free: true }],
+    state: 'open',
+    specDir,
+  };
+  await writeWaitRecord(wait);
+
+  try {
+    await pressAnswer(page, waitId);
+
+    await page.getByTestId('answer-text-ruling').fill(rulingText);
+    await page.getByTestId('ruling-notes').fill(noteText);
+    await page.getByTestId('answer-submit').click();
+
+    // At base `HomePage` passes `stage={null}` unconditionally, so
+    // `answer-stage` (`AnswerStageLine`) never renders no matter how long the
+    // test waits; this assertion is the behaviour task 12 wires in.
+    await expect(page.getByTestId('answer-stage')).toBeVisible({ timeout: 5000 });
+    // Past this point the server's `answerWait` (which writes the wait
+    // record and `questions.md` before resolving) has returned.
+    await expect(page.getByTestId('answer-stage')).toHaveText(/running|done/, { timeout: 10000 });
+
+    const record = await readWaitRecord(waitId);
+    expect(record.answer?.ruling?.by).toBe('operator');
+    expect(record.answer?.ruling?.value).toBe(`${rulingText}\n\nNotes: ${noteText}`);
+
+    const questionsMd = await readFile(join(specDir, 'questions.md'), 'utf-8');
+    expect(questionsMd).toContain(`## escalation ${waitId}`);
+    expect(questionsMd).toContain(rulingText);
+    expect(questionsMd).toContain(`Notes: ${noteText}`);
+
+    await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId(`wait-tile-${waitId}`)).toHaveCount(0);
+    await expect(page.getByTestId(`run-tile-${runId}`)).toBeVisible();
+    await expect(page.getByTestId(`run-status-${runId}`)).toContainText('paused');
+  } finally {
+    await removeWaitRecord(waitId);
+    await removeRunRecord(runDir);
+    await rm(specDir, { recursive: true, force: true });
+  }
+});
+
+test('(task 12) a 500 from the answer request shows failed in answer-stage, keeps the typed values and re-enables answer-submit', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const waitId = 'e2e-ruling-stage-fail-wait';
+  const rulingText = 'Approved: ship it, pending the follow-up.';
+  const noteText = 'Flagging this for a second look next sprint.';
+
+  const wait: WaitRecord & { specDir: string } = {
+    v: 1,
+    id: waitId,
+    kind: 'escalation',
+    run: 'e2e-ruling-stage-fail-missing-run',
+    project: 'e2e-ruling-stage-fail-proj',
+    spec: 'e2e-ruling-stage-fail-spec',
+    created: isoAgo(60_000),
+    questions: [{ id: 'ruling', text: 'Design defect: needs a ruling.', free: true }],
+    state: 'open',
+    specDir: join(tmpdir(), 'e2e-ruling-stage-fail-nonexistent-specdir'),
+  };
+  await writeWaitRecord(wait);
+
+  try {
+    await pressAnswer(page, waitId);
+
+    await page.route(`**/api/controller/waits/${waitId}/answer`, (route) => route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ reason: 'simulated server failure' }),
+    }));
+
+    await page.getByTestId('answer-text-ruling').fill(rulingText);
+    await page.getByTestId('ruling-notes').fill(noteText);
+    const submit = page.getByTestId('answer-submit');
+    await submit.click();
+
+    await expect(page.getByTestId('answer-stage')).toHaveText('failed: simulated server failure', { timeout: 5000 });
+    await expect(page.getByTestId('answer-text-ruling')).toHaveValue(rulingText);
+    await expect(page.getByTestId('ruling-notes')).toHaveValue(noteText);
+    await expect(submit).toBeEnabled();
+  } finally {
+    await removeWaitRecord(waitId);
+  }
+});
+
+test('(task 12) a gate wait answered with a picked option and a note sends the option alone, with Notes in the receipt', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const specDir = mkdtempSync(join(tmpdir(), 'e2e-ruling-stage-gate-spec-'));
+  const waitId = 'e2e-ruling-stage-gate-wait';
+  const runId = 'e2e-ruling-stage-gate-run';
+  const project = 'e2e-ruling-stage-gate-proj';
+  const spec = 'e2e-ruling-stage-gate-spec';
+  const noteText = 'Please double check the naming before merging.';
+
+  const run = baseRun(runId, project, '/tmp/e2e-ruling-stage-gate-nonexistent', {
+    spec,
+    pauseRequested: isoAgo(5 * 60_000),
+  });
+  const runDir = await writeRunRecord(run);
+
+  const wait: WaitRecord & { specDir: string } = {
+    v: 1,
+    id: waitId,
+    kind: 'gate-b',
+    run: runId,
+    project,
+    spec,
+    created: isoAgo(60_000),
+    questions: [{
+      id: 'gate-b',
+      text: 'Approve the task plan, or annotate it?',
+      options: ['Approve', 'Annotate'],
+      free: true,
+    }],
+    state: 'open',
+    specDir,
+  };
+  await writeWaitRecord(wait);
+
+  try {
+    await pressAnswer(page, waitId);
+
+    await page.getByTestId('answer-opt-gate-b').nth(1).check();
+    await page.getByTestId('ruling-notes').fill(noteText);
+    await page.getByTestId('answer-submit').click();
+
+    await expect(page.getByTestId('answer-stage')).toHaveText(/running|done/, { timeout: 10000 });
+
+    const record = await readWaitRecord(waitId);
+    expect(record.answer?.['gate-b']?.value).toBe('Annotate');
+
+    const questionsMd = await readFile(join(specDir, 'questions.md'), 'utf-8');
+    expect(questionsMd).toContain('## Gate B');
+    expect(questionsMd).toContain('Annotate');
+    expect(questionsMd).toContain(`Notes: ${noteText}`);
+  } finally {
+    await removeWaitRecord(waitId);
+    await removeRunRecord(runDir);
+    await rm(specDir, { recursive: true, force: true });
   }
 });
