@@ -6,6 +6,7 @@ import { PathUtils } from '../core/path-utils.js';
 import { selectRoots } from './root-selection.js';
 import { SpecParser } from '../core/parser.js';
 import { parseTasksFromMarkdown, taskBlock } from '../core/task-parser.js';
+import { isTddMarked } from '../core/tdd-mark.js';
 import { parseSensitivePaths } from '../core/gate-rules.js';
 import { computeClassA, applyKeywordSaturationFallback, TaskVetoInput } from '../core/veto-rules.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
@@ -750,7 +751,9 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
     // them (retro P8). The marker gates the authorFiles/authorReport defaults below.
     if (template === 'implementer') {
       const task = parseTasksFromMarkdown(tasksContent).tasks.find((t) => t.id === taskId);
-      tddMarked = !!task?.tests && task.tests.length > 0;
+      // The one shared predicate the controller also routes on (retro F5/P5), so a
+      // `kind: e2e` task is not treated as marked here when it is skipped there.
+      tddMarked = task ? isTddMarked(task, block) : false;
     }
   }
 
