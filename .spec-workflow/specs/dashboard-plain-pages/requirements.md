@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec rebuilds the three plain pages of the dashboard: Specs becomes the decomposition as an ordered list, Usage becomes the weekly window with a burn and a fit, and Deferrals becomes one queue table with a Resolve action. It is for the one operator, to answer where each project is, how much of the week is left, and what is in the queue. It adds one controller writer (the usage log, which threads the emitting run's id through the rate-limit callback), one server route (resolve), and removes the panels, filters, the cost tab and the trend.
+This spec rebuilds the dashboard's three plain pages: Specs becomes the decomposition as an ordered list, Usage becomes the weekly window with a burn and a fit, and Deferrals becomes one queue table with a Resolve action. It adds one controller writer (the usage log, which threads the emitting run's id through the rate-limit callback), one server route (resolve), and removes the panels, filters, the cost tab and the trend.
 
 ## Alignment with Product Vision
 
@@ -166,5 +166,6 @@ This spec rebuilds the three plain pages of the dashboard: Specs becomes the dec
   - **R1-3 — Accepted (SHOULD_FIX).** The decomposition-delta note now records D7 redefining burn from the entry's utilisation delta over 24 h to the sum of positive steps.
   - **R1-4 — Accepted (MINOR).** Req 7 AC3 now names the store's representative project as the POST path's project id.
   - **R1-5 — Accepted (MINOR).** Req 5 AC1 now states the controller-runs push is account-wide, unfiltered by enable state.
+  - **Lint pass.** 0 fixed; L-1..L-7 rejected, citation-identifier false positives (log-line schema, resolve field, deletion targets); the citation anchors a different phrase; L-3..L-6 unchanged, rule 11.
 - **v1** (2026-11-13) — Initial draft.
   - **Lint pass.** 0 fixed; L-1..L-7 rejected as citation-identifier false positives — each flagged token names an artifact this spec defines (`usage-log.jsonl`, `sevenDay.utilization`, `run`, the `resolution` field) or a deletion target the context file maps (`UsageSpecRow`, `SpecPanel`, `FileRow`); the adjacent citation anchors a different phrase.
