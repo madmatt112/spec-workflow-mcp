@@ -1,33 +1,33 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-11-14 (round 1, v1)
+Last updated: 2026-11-14 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — awaiting reviser disposition)
+- **R1-1 (v1) SHOULD_FIX** — run-id path for the usage-log line + no-run case. v2 added the null-`run` clause to Req 3 AC1 and named the run-id path in Left-to-the-design.
+- **R1-2 (v1) SHOULD_FIX** — burn/fit transport. v2 named the transport options and reworded Req 4 AC8.
+- **R1-3 (v1) SHOULD_FIX** — D7 burn deviation missing from the decomposition-delta note. v2 added it. Resolved.
+- **R1-4 (v1) MINOR** — resolve POST `projectId` for a shared store. v2 named the representative and the shared-store justification (verified true). Resolved.
+- **R1-5 (v1) MINOR** — controller-runs push account-wide. v2 stated it (verified). Resolved.
 
 ### Partially Accepted
 - (none)
 
 ### Rejected
-- Lint-pass L-1..L-7 (by the drafter, pre-review): all rejected as citation-identifier false positives. Closed in Revision History; do not re-open.
+- Lint L-1..L-7 (both v1 and v2 lint passes): citation-identifier false positives. Closed in Revision History; do not re-open.
 
-### Unresolved (round 1)
-- **R1-1 [design] SHOULD_FIX** — Req 3 AC1 / D10 require a `run` id on each usage-log line, but `onRateLimit(windows)` carries no run id (`runs.ts:406`, `step.ts:135`, phase interfaces `document.ts:182`/`retrospective.ts:41`/`implementation.ts:96`/`closeout.ts:62`/`merge-fix.ts:50`); the six `runs.ts` call sites pass it raw while adjacent `onStepActivity` gets `run.id`. No-run case (supervisor / optional `spec.runId`) unspecified. Introduction's "one controller writer" and "Left to the design" both omit this.
-- **R1-2 [design] SHOULD_FIX** — No named server→client transport for server-computed burn/fit (Req 4 AC4, 5 AC5). Only surviving Usage fetch is `/api/controller/rate-limit` (window-only); closed-specs route deleted. 4 AC8 pins refresh to `UsagePage.tsx:95-102` (rate-limit fetch), which can't carry per-run fit.
-- **R1-3 [drafting] SHOULD_FIX** — "Cut or changed against the decomposition entry" lists D1 and D2 but omits D7's redefinition of burn (decomp "utilisation delta over 24 h" → "sum of positive steps"), observably different across a reset.
-- **R1-4 [design] MINOR** — Req 7 AC3 resolve POST `projectId` for a shared store unstated (representative implied by D2, not said for the mutation path).
-- **R1-5 [design] MINOR** — D11 "enabled or not" relies on the controller-runs push being account-wide; true today but unstated.
+### Unresolved (round 2)
+- **R2-1 [drafting] SHOULD_FIX** — fix-induced, `Compounds: R1-1`. The v2 Introduction says the log "threads the emitting run's id through the rate-limit callback", committing to the `onRateLimit`-signature option; the v2 Left-to-the-design bullet leaves that path open (signature change OR a direct `step.ts:499-502` write that never touches the callback). Introduction pre-decides what Scope defers. Fix: reword the Introduction's parenthetical; no requirement/scope change.
+- **R2-2 [drafting] MINOR** — `Compounds: R1-2`. Req 4 AC8 "refetch … from the usage route" (singular) presumes one transport; AC1–AC3 source the window from `rate-limit.json` and Left-to-the-design permits a separate burn/fit route (two routes). Loose wording only.
 
 ## Patterns & Themes
-- Wire-contract omissions cluster where a new field/number must cross a boundary that does not carry it: the run id into the log writer (R1-1) and the burn/fit out to the page (R1-2). Both are absent from the explicit "Left to the design" list, so they read as oversights.
-- Citations are uniformly accurate (all ~30 verified both ends). The risk surface is scope/completeness, not misstatement.
-- Scope-delta declarations against decomposition #34 are incomplete by one entry (D7).
+- Round 1 found omissions (missing mechanism/transport). Round 2's one live defect is the mirror: the R1-1 fix *over-corrected* — the Introduction now asserts a mechanism the same fix's Scope bullet deliberately left open. Fix-induced inconsistency between two clauses of one edit; this is the class the prompt flags for round 2+.
+- Citations remain uniformly accurate across both versions (every v2-touched citation re-verified both ends; new `step.ts:461`, `runs.ts:405-406`, `stores.ts:16-22/39` all accurate).
+- Shared-store resolve (R1-4) and account-wide push (R1-5) claims verified true in code, not just asserted.
 
 ## Guidance for Next Review
-- Confirm the reviser named the run-id path and the no-run case in Req 3 (or "Left to the design"), and that the Introduction no longer undersells the controller change.
-- Confirm a burn/fit transport (route or push + response shape) is named and that 4 AC8 matches it.
-- Confirm the D7 burn deviation is in the decomposition-delta note.
-- Re-probe no `## Probes` line existed in the context file; nothing owed there.
-- All v1 citations verified accurate — a later round need not re-verify unless a line range moved.
+- Confirm the reviser reworded the Introduction so it no longer names the rate-limit callback as the run-id path (must match the two-option Left-to-the-design bullet). That is the only loop-keeper.
+- Optionally confirm 4 AC8 no longer presumes a single "usage route" if the design has not picked the extend option.
+- Do not re-verify v1/v2 citations unless a line range moves — all confirmed accurate.
+- Well-covered, no re-examination needed: null-`run`/burn/fit logic (consistent), D5/D7/D8 option trims (rationale intact), state-word precedence (round 1, fine), security/ESCALATE surface (resolve route only, clean).

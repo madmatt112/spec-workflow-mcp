@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec rebuilds the dashboard's three plain pages: Specs becomes the decomposition as an ordered list, Usage becomes the weekly window with a burn and a fit, and Deferrals becomes one queue table with a Resolve action. It adds one controller writer (the usage log, which threads the emitting run's id through the rate-limit callback), one server route (resolve), and removes the panels, filters, the cost tab and the trend.
+This spec rebuilds the dashboard's three plain pages: Specs becomes the decomposition as an ordered list, Usage becomes the weekly window with a burn and a fit, and Deferrals becomes one queue table with a Resolve action. It adds one controller writer (the usage log, which records each rate-limit reading with the id of the run that emitted it), one server route (resolve), and removes the panels, filters, the cost tab and the trend.
 
 ## Alignment with Product Vision
 
@@ -67,7 +67,7 @@ This spec rebuilds the dashboard's three plain pages: Specs becomes the decompos
 5. IF the log holds no line at or before 24 h ago THEN the burn SHALL read "not known yet".
 6. WHEN two log lines 24 h apart are the only lines and the clock (a test seam) reads the second line's time THEN the burn SHALL equal the second utilisation minus the first, in percentage points.
 7. WHEN the page renders THEN it SHALL NOT show the five-hour window.
-8. WHEN a `controller-runs` push arrives THEN the page SHALL refetch its figures — the window, the burn and the per-run fits — from the usage route, on the same cue the current page refetches the window (`src/dashboard_frontend/src/modules/shell/UsagePage.tsx:95-102`).
+8. WHEN a `controller-runs` push arrives THEN the page SHALL refetch its figures — the window, the burn and the per-run fits — from the server, on the same cue the current page refetches the window (`src/dashboard_frontend/src/modules/shell/UsagePage.tsx:95-102`).
 
 ### Requirement 5 — Usage page: live runs and the fit
 
@@ -160,12 +160,14 @@ This spec rebuilds the dashboard's three plain pages: Specs becomes the decompos
 
 ## Revision History
 
-- **v2** (2026-11-14) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/2).
-  - **R1-1 — Accepted (SHOULD_FIX).** Introduction now says the usage log threads the emitting run's id through the rate-limit callback; Req 3 AC1 gives run as the run id or null for a no-run step such as the supervisor, a null-run line counting toward burn but no run's fit; Left-to-the-design names the run-id path.
-  - **R1-2 — Accepted (SHOULD_FIX).** Req 4 AC8 now refetches the window, burn and per-run fits from the usage route on the controller-runs cue; Left-to-the-design names their transport and response shape.
-  - **R1-3 — Accepted (SHOULD_FIX).** The decomposition-delta note now records D7 redefining burn from the entry's utilisation delta over 24 h to the sum of positive steps.
-  - **R1-4 — Accepted (MINOR).** Req 7 AC3 now names the store's representative project as the POST path's project id.
-  - **R1-5 — Accepted (MINOR).** Req 5 AC1 now states the controller-runs push is account-wide, unfiltered by enable state.
-  - **Lint pass.** 0 fixed; L-1..L-7 rejected, citation-identifier false positives (log-line schema, resolve field, deletion targets); the citation anchors a different phrase; L-3..L-6 unchanged, rule 11.
-- **v1** (2026-11-13) — Initial draft.
-  - **Lint pass.** 0 fixed; L-1..L-7 rejected as citation-identifier false positives — each flagged token names an artifact this spec defines (`usage-log.jsonl`, `sevenDay.utilization`, `run`, the `resolution` field) or a deletion target the context file maps (`UsageSpecRow`, `SpecPanel`, `FileRow`); the adjacent citation anchors a different phrase.
+- **v3** (2026-11-14) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** The Introduction no longer names the rate-limit callback; it now says the log records each rate-limit reading with the run id, matching the deferred two-option run-id path the Left-to-the-design bullet keeps open.
+  - **R2-2 — Accepted (MINOR).** Req 4 AC8 refetches the window, burn and per-run fits from the server, not "the usage route", so it presumes no single transport while the design keeps that choice open.
+- **v2** (2026-11-14) — Round-1 adversarial response (verdict iterate 0/3/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** Req 3 AC1 gives run as the run id or null for a no-run step such as the supervisor, a null-run line counting toward burn but no fit; Left-to-the-design names the run-id path.
+  - **R1-2 — Accepted (SHOULD_FIX).** Req 4 AC8 refetches window, burn and per-run fits on the controller-runs cue; Left-to-the-design names their transport and shape.
+  - **R1-3 — Accepted (SHOULD_FIX).** The decomposition-delta note records D7 redefining burn as the sum of positive steps.
+  - **R1-4 — Accepted (MINOR).** Req 7 AC3 names the store's representative project as the POST path's project id.
+  - **R1-5 — Accepted (MINOR).** Req 5 AC1 states the controller-runs push is account-wide.
+  - **Lint pass.** 0 fixed; L-1..L-7 rejected as citation-identifier false positives; the adjacent citation anchors a different phrase.
+- **v1** (2026-11-13) — Initial draft. Lint pass: 0 fixed; L-1..L-7 rejected as citation-identifier false positives.
