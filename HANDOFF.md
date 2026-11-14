@@ -195,6 +195,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-10 | dashboard-ruling-view | implementation | tasks 13/13 | complete | PR #215 |
 | 2026-11-10 | dashboard-ruling-view | retrospective |  | retro-ready | 11 findings, 9 proposals |
 | 2026-11-10 | dashboard-ruling-view | closeout | items 9/9 | closed | 2 done, 2 to-do, 5 skipped |
+| 2026-11-14 | dashboard-plain-pages | requirements | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1635,4 +1636,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/217 |
 | To-dos | P5: Fix complete & green in-tree (committed eed2f190); gate fails only file-outside-list, no implementer commit can clear it. REQUIRED: src/core/tdd-mark.ts (shared predicate the item mandates in src/core); REQUIRED: src/controller/phases/implementation.ts (controller consumer named by Target). Both genuinely required, not accidental.; P6: Fix complete & green in-tree (committed 0f56041); gate fails only file-outside-list. REQUIRED: harness/agents/sdd-drafter.md (tasks-drafter convention in Target); REQUIRED: src/core/lint-tasks.ts, src/core/lint-types.ts, src/tools/spec-lint.ts (the mandated inline-marker lint). Owed: evals core-tdd-mark-single-source + tasks-lint-e2e-marker not addable (amend-nothing, new off-list paths). |
 | Gotchas | none |
+
+
+## dashboard-plain-pages — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-11-14 |
+| Rounds | 3; verdicts should-fix-only → converged |
+| Approval | `approval_1794670313044_yj0rarl4n` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 
