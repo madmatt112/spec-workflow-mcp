@@ -81,7 +81,7 @@ Three slices share the shell. (1) Specs: `ShellFeed.flush` (`src/dashboard/shell
   1. `window` = `readRateLimit()`'s `sevenDay` (`src/controller/state.ts:593-599`), else `null`.
   2. `lines = readUsageLog(nowMs)`; `burn = computeBurn(lines, nowMs)`.
   3. Live runs = the values of `liveRunsByProject(listRunsSync())`, for every registered project, enabled or not (D11). Each run gives one `UsageRunLine` with the project name from `projects` (else the run's project id), the spec, the phase and `tokens = totalW(run.tokens)`. `totalW` (`src/controller/runs.ts:585-587`) becomes an export.
-  4. Fit (D8), only when `run.phase === 'implementation'`. `done` = the count of distinct `task` values in `task.done` rows whose `run` is the run's id, in `<specStore>/.spec-workflow/specs/<spec>/harness-events.jsonl` (D18). `remaining` = `total − completed` of `parseTaskProgress` (`src/core/task-parser.ts:553-568`) over that spec's `tasks.md`. `use = attributedUse(lines, run.id)`. `headroom = 1 − u`, where `u` is the newest log line's utilisation (D26). When `done ≥ 1`, `use > 0`, `window` is not null and `window.resetsAt` is in the future, the fit is `'fits'` if `use / done × remaining ≤ headroom`, else `'does-not-fit'`. Otherwise the fit is `null`, which reads "not known yet" (Requirement 5 AC3; D20).
+  4. Fit (D8), only when `run.phase === 'implementation'`. `done` = the count of distinct `task` values in `task.done` rows whose `run` is the run's id, in `<specStore>/.spec-workflow/specs/<spec>/harness-events.jsonl` (D18). `remaining` = `total − completed` of `parseTaskProgress` (`src/core/task-parser.ts:553-568`) over that spec's `tasks.md`. `use = attributedUse(lines, run.id)`. `headroom = 1 − u`, where `u` is the newest log line's utilisation (D26). When `done ≥ 1`, `use > 0`, `remaining != null`, `window` is not null and `window.resetsAt` is in the future, the fit is `'fits'` if `use / done × remaining ≤ headroom`, else `'does-not-fit'`. Otherwise the fit is `null`, which reads "not known yet" (Requirement 5 AC3; D20).
 - **Post-conditions:** never throws; a missing ledger or `tasks.md` gives a `null` field (NFR Reliability).
 
 ### C7 — Server routes (`src/dashboard/multi-server.ts`)
@@ -92,7 +92,7 @@ Three slices share the shell. (1) Specs: `ShellFeed.flush` (`src/dashboard/shell
     1. `resolution` is not a string, or its trimmed text is empty or longer than 2,000 characters → 400 `{ error: 'invalid-resolution' }`.
     2. The project is unknown → 404 `{ error: 'Project not found' }`.
     3. `deferralId` does not match `^[A-Za-z0-9_-]+$` → 404 `{ error: 'Deferral not found' }`. This keeps a crafted id out of the file path that `DeferralStorage.filePath` builds.
-    4. `storage.get(id)` is null and `storage.fileExists(id)` is false → 404. `get` is null but the file exists → 409 with the reindex message of `src/core/deferral-storage.ts:196-199`.
+    4. `storage.get(id)` is null and `storage.fileExists(id)` is false → 404 `{ error: 'Deferral not found' }` (matching check 3). `get` is null but the file exists → 409 with the reindex message of `src/core/deferral-storage.ts:196-199`.
     5. The record's `status` is not `deferred` → 409 `{ error: 'Deferral <id> is already <status>' }`.
     6. Call `deferralsHandler({ action: 'resolve', projectPath: project.projectPath, id, resolution: trimmed }, { projectPath: project.projectPath, workspacePath: project.workspacePath })` (`src/tools/deferrals.ts:116-153`, which reaches `handleResolve` at `:258-270` and `DeferralStorage.resolve` at `src/core/deferral-storage.ts:307-319`). If it returns `success: false` (a race after the checks), the route replies 409 with its `message`.
   - Deleted: `GET /api/shell/projects/:projectId/specs/:specName` (`src/dashboard/multi-server.ts:611-618`), `GET /api/shell/usage/closed-specs` (`:625-643`), the `usageCache` field (`:161-163`) and the imports at `:32-33`.
@@ -206,5 +206,8 @@ interface UsageView {
 
 ## Revision History
 
+- **v2** (2026-11-14) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 1/1/0).
+  - **R1-1 — Accepted (MUST_FIX).** C7 check 4's missing-record 404 now states the Deferral-not-found error body, matching check 3, so the C10 box renders a reason instead of a blank on the resolve race.
+  - **R1-2 — Accepted (SHOULD_FIX).** C6 step 4's fit guard now requires remaining to be non-null, so a torn or missing tasks.md falls to not-known-yet instead of a bogus fits; now consistent with the C6 post-condition and the Reliability NFR.
 - **v1** (2026-11-14) — Initial draft.
   - **Lint pass.** 11 fixed (ranges/prefixes corrected): L-3,4,5,6,7,9,37,38,39,40,41. Rejected: L-1,10,11,12,18,30,43,44,46,47,48,49 new identifiers; L-2,15,17,19,20,21,22,23,24,25,26,29,54 filename fragment or design-local var/field; L-8,13,14,16,27,28,31,32,33,34,35,36,42,45,50,51,52,53,55,56,57 token cited elsewhere (multi-citation line match).
