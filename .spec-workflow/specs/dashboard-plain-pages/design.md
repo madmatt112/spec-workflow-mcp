@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design rebuilds the Specs, Usage and Deferrals pages of the dashboard shell and adds one controller writer, the usage log, plus two server routes, a usage view and a deferral resolve. The Specs page reads one block per spec store from the existing `shell-specs` push, and the Usage page reads one new route that computes the window, the burn and the per-run fits on the server. It reuses the shell feed, store grouping, deferrals push, deferral store and run-setup decomposition helpers.
+This design rebuilds the Specs, Usage and Deferrals pages of the dashboard shell and adds one controller writer, the usage log, plus two server routes, a usage view and a deferral resolve. The Specs page reads one block per spec store from the existing `shell-specs` push, and the Usage page reads one new route that computes the window, the burn and the per-run fits on the server.
 
 ## Steering Document Alignment
 
@@ -30,9 +30,9 @@ Three slices share the shell. (1) Specs: `ShellFeed.flush` (`src/dashboard/shell
   - `readUsageLog(nowMs: number): UsageLogLine[]` — reads the whole file, skips each line that does not parse or lacks a numeric `sevenDay.utilization` and a string `ts`, drops lines older than `nowMs − 8 days`, and returns the rest sorted by `ts` ascending. A missing file gives `[]`.
   - `computeBurn(lines: UsageLogLine[], nowMs: number): number | null` — D7. The anchor is the newest line with `ts` at or before `nowMs − 24 h`; `null` when there is none. The result is the sum over consecutive pairs from the anchor to the newest line of `max(0, later − earlier)` in utilisation, times 100 (percentage points).
   - `attributedUse(lines: UsageLogLine[], runId: string): number` — D8 numerator: the sum over consecutive pairs of all lines of `max(0, later − earlier)` where the later line's `run` equals `runId`, in utilisation (0..1).
-- **Post-conditions:** two calls of `appendUsageLine` give two whole lines. The controller runs in one process and the call is synchronous, so two readings never interleave (Requirement 3 AC4). Probe: on node v24.13.0, two `appendFileSync` calls on one path gave exactly two whole lines (scratch probe, not in the repository). Nothing here depends on node-20 stream timing.
-- **Dependencies:** `controllerHome` (`src/controller/state.ts:293-297`), which honours `SDD_HOME` (Requirement 3 AC5).
-- **Reuses:** the append-a-JSON-line pattern of the run ledger (`src/controller/ledger.ts:160-166` writes through `appendFileSync`).
+- **Post-conditions:** two calls of `appendUsageLine` give two whole lines. The controller runs in one process and the call is synchronous, so two readings never interleave (Requirement 3 AC4). Probe: on node v24.13.0, two `appendFileSync` calls on one path gave two whole lines (scratch, not committed). Nothing here depends on node-20 stream timing.
+- **Dependencies:** `controllerHome` (`src/controller/state.ts:292-297`), which honours `SDD_HOME` (Requirement 3 AC5).
+- **Reuses:** the append-a-JSON-line pattern of the run ledger (`src/controller/ledger.ts:107` writes through `appendFileSync`).
 
 ### C2 — Run id on the rate-limit callback (`src/controller/step.ts`, `src/controller/runs.ts`, `src/controller/controller.ts`)
 - **Purpose:** Carry the emitting run's id to the log line (Requirement 3 AC1, D13).
@@ -41,7 +41,7 @@ Three slices share the shell. (1) Specs: `ShellFeed.flush` (`src/dashboard/shell
   - The `rate_limit_event` branch (`src/controller/step.ts:499-502`) calls `spec.onRateLimit?.(lastRateLimit, spec.runId ?? null)`; `spec.runId` is the optional field at `src/controller/step.ts:127`.
   - `RunDeps.onRateLimit(windows: RateLimitWindows, run?: string | null): void` (`src/controller/runs.ts:405-406`).
   - `Controller.runDeps().onRateLimit` (`src/controller/controller.ts:732`) becomes `(w, run) => { void this.persistRateLimit(w); appendUsageLine({ v: 1, ts: this.now().toISOString(), sevenDay: { utilization: w.sevenDay.utilization }, run: run ?? null }, this.now); }`.
-- **Post-conditions:** `persistRateLimit` (`src/controller/controller.ts:790-803`) writes the same `rate-limit.json` content as at base (Requirement 3 AC2). The phase contexts that forward `ctx.onRateLimit` (`src/controller/phases/document.ts:182`, `implementation.ts:96`, `closeout.ts:62`, `retrospective.ts:41`, `src/controller/merge-fix.ts:50`) keep their one-parameter type: a function with an extra optional parameter is assignable to it, and the runtime function is the controller's, so `step.ts` passes the run id straight through. No phase file changes.
+- **Post-conditions:** `persistRateLimit` (`src/controller/controller.ts:790-803`) writes the same `rate-limit.json` content as at base (Requirement 3 AC2). The phase contexts that forward `ctx.onRateLimit` (`src/controller/phases/document.ts:182`, `src/controller/phases/implementation.ts:96`, `src/controller/phases/closeout.ts:62`, `src/controller/phases/retrospective.ts:41`, `src/controller/merge-fix.ts:50`) keep their one-parameter type: an extra optional parameter stays assignable, and the runtime function is the controller's, so `step.ts` passes the run id through. No phase file changes.
 - **Reuses:** `RateLimitFile` (`src/controller/state.ts:238-253`) stays unchanged.
 
 ### C3 — Spec block builder (`src/dashboard/shell/spec-rows.ts`, rewritten in place)
@@ -60,7 +60,7 @@ Three slices share the shell. (1) Specs: `ShellFeed.flush` (`src/dashboard/shell
      - **not started:** otherwise; no fact.
 - **Post-conditions:** an unnamed spec directory gives no line (D4); at most one line reads "next", as one launchable spec exists per store (Requirement 2 AC8); a missing file gives an empty field, never a throw.
 - **Deletions in this file:** `buildSpecRows`, `buildSpecDetail`, `parseDecomposition`, `buildRuns`, `listTopLevelFiles`, `newestRunAbandoned` and `SPEC_NAME_RE`/`VERSION_RE` go. `isSpecClosed`, `timeOf`, `newestBy` and `firstStatusValue` stay.
-- **Reuses:** `parseHandoffPhaseRows` and `handoffPath` (imported at `src/dashboard/shell/spec-rows.ts:11-13`), `FileCache` (`src/dashboard/shell/file-cache.ts:20-48`).
+- **Reuses:** `parseHandoffPhaseRows` and `handoffPath` (imported at `src/dashboard/shell/spec-rows.ts:11-13`), `FileCache` (`src/dashboard/shell/file-cache.ts:16-48`).
 
 ### C4 — Decomposition helpers (`src/dashboard/harness/run-setup.ts`)
 - **Purpose:** Share the heading list and launchable rule with C3, so "next" matches the setup view before its guards (Requirement 2 AC5).
@@ -100,19 +100,19 @@ Three slices share the shell. (1) Specs: `ShellFeed.flush` (`src/dashboard/shell
 
 ### C8 — Specs page (`src/dashboard_frontend/src/modules/shell/SpecsPage.tsx`, rewritten)
 - **Purpose:** Render the blocks (Requirement 1).
-- **Interfaces:** reads `specBlocks` from `useShell()`. It shows a block only when `storeOf(projects, block.projectId)` is the store of an enabled `storeGroups` group (`src/dashboard_frontend/src/modules/projects/stores.ts:25-49`), in the order of `storeGroups`, titled with the representative's `projectName`. Each line shows the number, the word as a `Pill` (tone `accent` for live, `success` for closed, `neutral` otherwise; the tones of `SpecsPage.tsx:32-39`), the spec and the fact. Lines are plain, unselectable and unlinked (D17).
+- **Interfaces:** reads `specBlocks` from `useShell()`. It shows a block only when `storeOf(projects, block.projectId)` is the store of an enabled `storeGroups` group (`src/dashboard_frontend/src/modules/projects/stores.ts:25-49`), in the order of `storeGroups`, titled with the representative's `projectName`. Each line shows the number, the word as a `Pill` (tone `accent` for live, `success` for closed, `neutral` otherwise; the tones of `src/dashboard_frontend/src/modules/shell/SpecsPage.tsx:32-39`), the spec and the fact. Lines are plain, unselectable and unlinked (D17).
 - **Test ids:** `specs-block-<projectId>`, `spec-line-<projectId>-<spec>`, `spec-word-<projectId>-<spec>`, `specs-no-decomposition-<projectId>`, where `projectId` is the block's representative.
 - **Deleted:** chips, search, pager, `SpecPanel`, `FileRow`, and the `PageLayout` and `primitives` imports.
 
 ### C9 — Usage page (`src/dashboard_frontend/src/modules/shell/UsagePage.tsx`, rewritten)
 - **Purpose:** Render `UsageView` (Requirements 4, 5).
-- **Interfaces:** fetch `/api/shell/usage` on mount and whenever `controllerRuns` changes, the cue of `UsagePage.tsx:95-102`. Keep the one-second tick of `UsagePage.tsx:117-120` for the time to reset. When `window` is `null`, show "No usage window seen yet". When `resetsAt` is at or before the tick, show "window reset — no reading since" (D9). Otherwise show the per cent left (`100 − round(utilization × 100)`) in large type, the reset time with `toLocaleString()`, the time to reset, and one bar filled to the utilisation. The burn shows `burn` rounded to one decimal place plus " pts in 24 h", or "not known yet". Each run line shows project, spec, phase, tokens and, in implementation, the remaining tasks and "fits before the reset", "does not fit before the reset" or "not known yet". No five-hour window, table or trend.
+- **Interfaces:** fetch `/api/shell/usage` on mount and whenever `controllerRuns` changes, the cue of `src/dashboard_frontend/src/modules/shell/UsagePage.tsx:95-102`. Keep the one-second tick of `src/dashboard_frontend/src/modules/shell/UsagePage.tsx:117-120` for the time to reset. When `window` is `null`, show "No usage window seen yet". When `resetsAt` is at or before the tick, show "window reset — no reading since" (D9). Otherwise show the per cent left (`100 − round(utilization × 100)`) in large type, the reset time with `toLocaleString()`, the time to reset, and one bar filled to the utilisation. The burn shows `burn` rounded to one decimal place plus " pts in 24 h", or "not known yet". Each run line shows project, spec, phase, tokens and, in implementation, the remaining tasks and "fits before the reset", "does not fit before the reset" or "not known yet". No five-hour window, table or trend.
 - **Test ids:** `usage-window`, `usage-left`, `usage-no-window`, `usage-burn`, `usage-run-<runId>`, `usage-fit-<runId>`.
 
 ### C10 — Deferrals page (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx`, rewritten)
 - **Purpose:** One open-record queue with Resolve (Requirements 6 and 7).
-- **Interfaces:** for each enabled store group, take the records of the first member with a payload (the rule of `DeferralsPage.tsx:54-57`), keep `status === 'deferred'`, and tag each with the group's representative. Sort by `createdAt` ascending, then by `id`. Columns: age (under 24 h `Nh`, else `Nd`, D22), id, project, spec (`originSpec`, else "project"), tag (`tags.join(', ')`), owner (empty when absent), summary (`title`). With no open record, show "Queue empty". Resolve opens an in-row box with a text field, a confirm and a Cancel. The confirm is disabled while the trimmed text is empty or a request is in flight. It POSTs to the representative project's route. On an error reply the box stays open with the reply's `error` text and keeps the typed text. On 200 the box closes, and the row leaves when the next `deferrals-update` replaces the payload.
-- **Test ids:** `deferral-row-<projectId>-<id>` (kept from `DeferralsPage.tsx:211`), `deferral-resolve-<id>`, `deferral-resolution-<id>`, `deferral-resolve-confirm-<id>`, `deferral-resolve-cancel-<id>`, `deferral-resolve-error-<id>`, `deferrals-empty`.
+- **Interfaces:** for each enabled store group, take the records of the first member with a payload (the rule of `src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:54-57`), keep `status === 'deferred'`, and tag each with the group's representative. Sort by `createdAt` ascending, then by `id`. Columns: age (under 24 h `Nh`, else `Nd`, D22), id, project, spec (`originSpec`, else "project"), tag (`tags.join(', ')`), owner (empty when absent), summary (`title`). With no open record, show "Queue empty". Resolve opens an in-row box with a text field, a confirm and a Cancel. The confirm is disabled while the trimmed text is empty or a request is in flight. It POSTs to the representative project's route. On an error reply the box stays open with the reply's `error` text and keeps the typed text. On 200 the box closes, and the row leaves when the next `deferrals-update` replaces the payload.
+- **Test ids:** `deferral-row-<projectId>-<id>` (kept from `src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:211`), `deferral-resolve-<id>`, `deferral-resolution-<id>`, `deferral-resolve-confirm-<id>`, `deferral-resolve-cancel-<id>`, `deferral-resolve-error-<id>`, `deferrals-empty`.
 
 ### C11 — Shell provider and wire copies
 - `ShellProvider` (`src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:60`) stores `specBlocks` from `shell-specs` `data.blocks`, in place of `specRows`.
@@ -207,3 +207,4 @@ interface UsageView {
 ## Revision History
 
 - **v1** (2026-11-14) — Initial draft.
+  - **Lint pass.** 11 fixed (ranges/prefixes corrected): L-3,4,5,6,7,9,37,38,39,40,41. Rejected: L-1,10,11,12,18,30,43,44,46,47,48,49 new identifiers; L-2,15,17,19,20,21,22,23,24,25,26,29,54 filename fragment or design-local var/field; L-8,13,14,16,27,28,31,32,33,34,35,36,42,45,50,51,52,53,55,56,57 token cited elsewhere (multi-citation line match).
