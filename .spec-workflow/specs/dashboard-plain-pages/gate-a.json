@@ -1,0 +1,46 @@
+{
+  "items": [
+    {
+      "header": "Stopped word",
+      "question": "What state word does a spec with documents get when it is not live, closed, deferred or next?",
+      "options": [
+        "Add a sixth word, \"stopped\", with the phase it stopped in",
+        "Keep five words and show it as \"not started\"",
+        "Show it as \"next\""
+      ]
+    },
+    {
+      "header": "Block per store",
+      "question": "Do Specs and Deferrals group by spec store or by registered project?",
+      "options": [
+        "One block per spec store (the two tradr projects share one)",
+        "One block per enabled project (same store listed twice)"
+      ]
+    },
+    {
+      "header": "Fit attribution",
+      "question": "How is a run's utilisation per task measured for the fit line?",
+      "options": [
+        "Per-run attribution: positive steps on log lines carrying the run's id",
+        "Window delta since the run started (counts other runs' spend)"
+      ]
+    },
+    {
+      "header": "Burn rule",
+      "question": "How is the 24 h burn computed from the usage log?",
+      "options": [
+        "Sum of positive steps over the last 24 h; \"not known yet\" until the log reaches back 24 h",
+        "Plain difference of the two lines 24 h apart",
+        "Same over a shorter span with its length shown"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ],
+      "basis": "Checked: no billing, payments, refunds or credits code; Resolve updates a deferral record's status and text (no deletion of user data); the usage log holds a timestamp, a utilisation number and a run id (no personal data); deleted items are dashboard routes and components, not stored data."
+    }
+  ]
+}
