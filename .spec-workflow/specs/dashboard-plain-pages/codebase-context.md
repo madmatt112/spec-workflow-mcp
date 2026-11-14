@@ -162,3 +162,42 @@
 - e2e/worktree-visual.spec.ts:342-354 — pill, button and row style capture
 - e2e/helpers/worktree-harness.ts:436-442 — seeds a spec dir with requirements.md, no decomposition
 - e2e/helpers/shell-seed.ts:83-100 — seedVisualSuite fixture
+
+## Tasks phase additions
+- tsconfig.json:20 — root tsc excludes src/dashboard_frontend
+- src/dashboard/__tests__/frontend-build.test.ts:21-22 — vite binary and config the frontend build test runs
+- src/controller/step.ts:403 — runStep export
+- src/controller/step.ts:461 — SDD_RUN_ID set from spec.runId
+- src/controller/runs.ts:813 — phase ctx forwards deps.onRateLimit (also :1026, :1047, :1078, :1096, :1391)
+- src/controller/controller.ts:732 — runDeps onRateLimit calls persistRateLimit
+- src/controller/controller.ts:825 — readRateLimitSync, private to the controller
+- src/controller/__tests__/step.test.ts:232-255 — usage-limit rate_limit_event case, windows fake
+- src/controller/__tests__/controller.test.ts:103-131 — fixture setup with SDD_HOME and the stub script
+- src/dashboard/shell/__tests__/spec-rows.test.ts:279 — buildSpecRows suite
+- src/dashboard/shell/__tests__/spec-rows.test.ts:483 — buildSpecDetail suite
+- src/dashboard/shell/__tests__/spec-rows.test.ts:620 — isSpecClosed suite
+- src/dashboard/shell/__tests__/shell-feed.test.ts:356-404 — shared-store and throwing-group cases asserting data.rows
+- src/dashboard/__tests__/shell-routes.test.ts:173 — route suite setup
+- src/dashboard/__tests__/shell-routes.test.ts:286-343 — shell-specs arrival cases
+- src/dashboard/__tests__/shell-routes.test.ts:379-472 — spec detail and closed-specs route cases
+- src/dashboard/harness/__tests__/run-setup.test.ts:552 — buildSetupView suite
+- src/dashboard/multi-server.ts:32-34 — spec-rows, usage-rows and FileCache imports
+- src/dashboard/multi-server.ts:161-163 — usageCache field
+- src/dashboard/multi-server.ts:609-643 — spec detail and closed-specs routes
+- src/dashboard/shell/usage-rows.ts:19 — imports isSpecClosed
+- src/core/tdd-mark.ts:20 — E2E_MARKER_RE standalone kind e2e line
+- src/core/tdd-mark.ts:27-30 — isTddMarked
+- src/dashboard_frontend/src/modules/shell/PageLayout.tsx:18 — page-list test id
+- src/dashboard_frontend/src/modules/shell/primitives.tsx:185 — the only data-ui row element
+- src/dashboard_frontend/src/modules/shell/DeployControl.tsx:99 — the only Pill outside the three pages
+- e2e/worktree-shell.spec.ts:228-246 — Specs toggle case on spec-row ids
+- e2e/worktree-shell.spec.ts:248-260 — panel stacking case
+- e2e/worktree-shell.spec.ts:262-288 — Deferrals owner chip case
+- e2e/worktree-shell.spec.ts:290-305 — Usage closed-specs and trend case
+- e2e/worktree-shell.spec.ts:307-309 — no-sideways-scroll page markers
+- e2e/worktree-board.spec.ts:3531-3581 — overflow case seeding a closed spec and waiting on usage-closed-specs
+- e2e/worktree-visual.spec.ts:313 — KindCapture union row, pill, button
+- e2e/worktree-visual.spec.ts:352-354 — row capture on data-ui row
+- e2e/worktree-visual.spec.ts:415-420 — style parity loop over row, pill, button
+- e2e/worktree-project-list.spec.ts:61-63 — deferralRowCount on deferral-row ids
+- e2e/worktree-ruling.spec.ts:227-237 — baseRun seeds a waiting run record
