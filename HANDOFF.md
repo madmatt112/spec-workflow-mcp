@@ -196,6 +196,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-10 | dashboard-ruling-view | retrospective |  | retro-ready | 11 findings, 9 proposals |
 | 2026-11-10 | dashboard-ruling-view | closeout | items 9/9 | closed | 2 done, 2 to-do, 5 skipped |
 | 2026-11-14 | dashboard-plain-pages | requirements | v3 | approved | 3 rounds |
+| 2026-11-14 | dashboard-plain-pages | design | v2 | approved | 2 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1645,6 +1646,19 @@ Gotchas:
 | State | approved at v3 on 2026-11-14 |
 | Rounds | 3; verdicts should-fix-only → converged |
 | Approval | `approval_1794670313044_yj0rarl4n` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
+
+
+## dashboard-plain-pages — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-11-14 |
+| Rounds | 2; verdicts converged |
+| Approval | `approval_1794672450874_u2mq22oxd` |
 | Rulings | none |
 | Cut scope | none |
 | Carried items | none |

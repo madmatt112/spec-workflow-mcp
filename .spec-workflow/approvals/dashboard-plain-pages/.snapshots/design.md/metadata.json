@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-plain-pages/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-14T16:07:30.935Z",
+      "trigger": "initial",
+      "approvalId": "approval_1794672450874_u2mq22oxd",
+      "approvalTitle": "dashboard-plain-pages design v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-14T16:07:31.105Z",
+      "trigger": "approved",
+      "approvalId": "approval_1794672450874_u2mq22oxd",
+      "approvalTitle": "dashboard-plain-pages design v2"
+    }
+  ]
+}

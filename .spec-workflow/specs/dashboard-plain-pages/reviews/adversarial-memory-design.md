@@ -1,11 +1,15 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-11-14 (round 1, v1)
+Last updated: 2026-11-14 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- none yet (round 1)
+- **R1-1 (MUST_FIX, v1→fixed v2):** C7 check 4 missing-record 404 now pins
+  `{ error: 'Deferral not found' }` (matching check 3). Verified against live code (`get`/`fileExists`
+  split; 409 reindex arm cites `deferral-storage.ts:196-199` correctly). Closed.
+- **R1-2 (SHOULD_FIX, v1→fixed v2):** C6 fit guard now requires `remaining != null`; torn/missing
+  `tasks.md` falls to "not known yet" instead of a bogus "fits". Consistent with C6 post-condition and
+  Reliability NFR. Closed.
 
 ### Partially Accepted
 - none
@@ -14,33 +18,19 @@ Last updated: 2026-11-14 (round 1, v1)
 - none
 
 ### Unresolved
-- **R1-1 — MUST_FIX [design].** C7 resolve route, check 4: the missing-record arm
-  (`storage.get` null + `fileExists` false → 404) states only the status, no `error` body,
-  while every sibling branch pins one. Reachable in the resolve race; C10 then renders a blank
-  reason. Fix: `{ error: 'Deferral not found' }` (match check 3).
-- **R1-2 — SHOULD_FIX [design].** C6 fit guard omits `remaining != null`. With `done ≥ 1`,
-  `use > 0`, live window, but a torn/missing `tasks.md` (`remaining` null), `use/done × null`
-  → 0 ≤ headroom → bogus "fits". Contradicts the Reliability NFR and C6's own post-condition.
-  Fix: fall to `null` ("not known yet") when `remaining` is null.
+- none
 
 ## Patterns & Themes
-
-- The document is citation-accurate: every lint-pass-changed citation in the diff verified against
-  live code, and the load-bearing C2 run-id/type-widening mechanism holds under direct probing
-  (`runId: ctx.run.id` is set in all five phases + gates). Do not re-litigate C2/D13.
-- Both open findings are *edge-case completeness* gaps in otherwise-complete contracts — one
-  missing error body among six branches, one missing null-guard in an otherwise-guarded formula.
-  The design pins shapes well in the common case; attack the corners.
-- Flagged departures (D25 double decomposition read; D20 passed-reset fit) are defensible and
-  should not be re-raised as defects.
+- v2 delta was exactly the two round-1 fixes; both verified clean with no regression introduced.
+- The document is citation-accurate across both reviews: ledger `run` field, `totalW` privacy,
+  `RateLimitWindow` shape, and the deferral-storage error ranges all hold under direct probing.
+- Only residue is one MINOR: C7 check 4b ("409 with the reindex message") leaves the `{ error: … }`
+  wrapper implicit where siblings spell it. Established pattern makes intent unambiguous; not a defect.
 
 ## Guidance for Next Review
-
-- Confirm R1-1 added the 404 body and R1-2 added `remaining != null`; scope each check to the
-  fix diff against its requirement (fix-induced re-check), not a whole re-review.
-- If v2 changes C7's check ordering or the fit formula, re-verify the error-branch discriminants
-  and the fit guard against the Reliability NFR.
-- Non-finding to carry into tasks review (not a design defect): C7 does not state how the route
-  constructs `storage`; the tasks phase should name `new DeferralStorage(project.projectPath)`
-  and make the 404-unknown-id test assert the `error` body.
-- Rejected/closed: none to date.
+- Design is converged (0/0). No further design round needed unless the document is re-opened.
+- Carry into tasks review (not design defects): name `new DeferralStorage(project.projectPath)` as the
+  route's storage construction, and make the 404-unknown-id resolve test assert the `error` body (C10
+  reads `reply.error`); optionally pin the check-4b `{ error: <reindex message> }` wrapper explicitly.
+- Well-covered, do not re-examine: C2/D13 run-id + type widening, Data-Models completeness, the fit
+  formula and its guards, the full C7 branch table, D25/D20 flagged departures.
