@@ -99,3 +99,66 @@
 - src/dashboard/__tests__/frontend-style-scan.test.ts:1-467 — static scan naming UsageTrend
 - e2e/worktree-shell.spec.ts:228-305 — Specs toggle, panel stacking, Deferrals owner chips, Usage trend lines
 - e2e/worktree-visual.spec.ts:23-75 — visual views: spec-panel, usage-closed-specs, deferral-panel
+
+## Controller rate-limit callback path (design phase)
+- src/controller/step.ts:127 — StepSpec.runId, optional
+- src/controller/step.ts:135 — StepSpec.onRateLimit, windows only
+- src/controller/runs.ts:585-587 — totalW: private sum of the four token kinds
+- src/controller/runs.ts:1595-1601 — listRunsForWire: wire rows newest first
+- src/controller/phases/document.ts:182 — ctx.onRateLimit type, forwarded to the step
+- src/controller/phases/implementation.ts:96 — ctx.onRateLimit type
+- src/controller/phases/closeout.ts:62 — ctx.onRateLimit type
+- src/controller/phases/retrospective.ts:41 — ctx.onRateLimit type
+- src/controller/merge-fix.ts:50 — ctx.onRateLimit type
+- src/controller/ledger.ts:160-166 — taskDone writes a task.done row with task, rounds, outcome
+- src/controller/__tests__/step.test.ts:70-92 — runner helper with the onRateLimit fake
+
+## Decomposition helpers (src/dashboard/harness/run-setup.ts)
+- src/dashboard/harness/run-setup.ts:53-59 — readIfExists
+- src/dashboard/harness/run-setup.ts:150-224 — buildSetupView: snapshot, routing, launchable, roles
+- src/dashboard/harness/run-setup.ts:202-205 — launchable expression: routed spec, else nextUnstartedSpec
+- src/core/spec-routing-deriver.ts:20 — RoutingDecision interface
+- src/core/index-generator.ts:40 — SpecSnapshot interface with routing
+
+## Shell support modules (src/dashboard/shell)
+- src/dashboard/shell/store-groups.ts:25-42 — groupByStore: one group per workflowRootPath with representative
+- src/dashboard/shell/file-cache.ts:20-48 — FileCache.text and jsonl, mtime/size keyed
+- src/dashboard/shell/spec-rows.ts:11-13 — imports of parseHandoffPhaseRows and handoffPath
+- src/dashboard/shell/spec-rows.ts:186-295 — parseDecomposition, buildRuns, listTopLevelFiles, buildSpecDetail (detail-only code)
+- src/core/task-parser.ts:553-568 — parseTaskProgress: total, completed from tasks.md text
+
+## Deferral write path
+- src/core/deferral-storage.ts:34-36 — filePath joins the id into the deferrals directory
+- src/core/deferral-storage.ts:179-189 — read: ok, missing or corrupt
+- src/core/deferral-storage.ts:485-492 — fileExists
+- src/tools/deferrals.ts:116-153 — deferralsHandler: validates the path, dispatches by action
+- src/types.ts:58-76 — ToolContext: projectPath and workspacePath
+- src/dashboard/watcher.ts:216-222 — handleDeferralChange emits deferral-change
+- src/dashboard/project-manager.ts:207-209 — forwards deferral-change with projectId, one watcher per project
+- src/dashboard/multi-server.ts:284-300 — onRequest hooks and access control for every route
+- src/dashboard/multi-server.ts:652-673 — GET harness/setup route
+
+## Frontend UI and page details
+- src/dashboard_frontend/src/modules/ui/ui.tsx:10 — Tone union
+- src/dashboard_frontend/src/modules/ui/ui.tsx:76 — Pill component
+- src/dashboard_frontend/src/modules/shell/SpecsPage.tsx:32-39 — STATE_TONE map
+- src/dashboard_frontend/src/modules/shell/UsagePage.tsx:117-120 — one-second tick
+- src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:54-57 — recordsOf: first member with a payload
+- src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:211 — deferral-row test id
+- src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:60 — shell-specs handler sets specRows
+- src/dashboard_frontend/src/modules/shell/types.ts:11-48 — hand copies of SpecListRow, SpecDetail, UsageSpecRow
+
+## Tests and suites the change touches (design phase)
+- src/dashboard/shell/__tests__/spec-rows.test.ts:588-644 — isSpecClosed suite
+- src/dashboard/__tests__/frontend-style-scan.test.ts:448-466 — UsageTrend SERIES suite
+- src/dashboard/__tests__/controller-dashboard-routes.test.ts:172 — rate-limit route case
+- src/dashboard/harness/__tests__/run-setup.test.ts — run-setup helpers suite
+- e2e/worktree-shared.spec.ts:399-414 — shared spec scenario on the spec detail route
+- e2e/worktree-no-shared.spec.ts:70-88 — spec-row ids and the project toggle
+- e2e/worktree-project-list.spec.ts:57-59 — specRowCount on spec-row ids
+- e2e/worktree-project-list.spec.ts:124-164 — shared store counts once on Specs and Deferrals
+- e2e/worktree-shell.spec.ts:307-309 — page markers usage-closed-specs and page-list
+- e2e/worktree-visual.spec.ts:57-78 — openView per view, opens panels
+- e2e/worktree-visual.spec.ts:342-354 — pill, button and row style capture
+- e2e/helpers/worktree-harness.ts:436-442 — seeds a spec dir with requirements.md, no decomposition
+- e2e/helpers/shell-seed.ts:83-100 — seedVisualSuite fixture
