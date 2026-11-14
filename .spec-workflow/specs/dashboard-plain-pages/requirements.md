@@ -163,6 +163,7 @@ This spec rebuilds the dashboard's three plain pages: Specs becomes the decompos
 - **v3** (2026-11-14) — SHOULD_FIX-only corrective pass.
   - **R2-1 — Accepted (SHOULD_FIX).** The Introduction no longer names the rate-limit callback; it now says the log records each rate-limit reading with the run id, matching the deferred two-option run-id path the Left-to-the-design bullet keeps open.
   - **R2-2 — Accepted (MINOR).** Req 4 AC8 refetches the window, burn and per-run fits from the server, not "the usage route", so it presumes no single transport while the design keeps that choice open.
+  - **Lint pass.** 0 fixed; rejected: L-1..L-7 citation-identifier false positives — each flagged token is a new filename/log field, a deleted symbol defined elsewhere, or a correct scope claim; the adjacent citation anchors a different phrase (all cited ranges re-verified). Tokens unchanged since v1/v2 rejections, suppressed per rule 11.
 - **v2** (2026-11-14) — Round-1 adversarial response (verdict iterate 0/3/2).
   - **R1-1 — Accepted (SHOULD_FIX).** Req 3 AC1 gives run as the run id or null for a no-run step such as the supervisor, a null-run line counting toward burn but no fit; Left-to-the-design names the run-id path.
   - **R1-2 — Accepted (SHOULD_FIX).** Req 4 AC8 refetches window, burn and per-run fits on the controller-runs cue; Left-to-the-design names their transport and shape.
