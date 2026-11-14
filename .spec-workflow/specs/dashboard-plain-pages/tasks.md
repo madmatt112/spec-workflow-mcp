@@ -36,7 +36,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
   - Test: src/dashboard/harness/__tests__/run-setup.test.ts — `decompositionHeadings(text)`
   - Test: src/dashboard/harness/__tests__/run-setup.test.ts — `launchableSpec(routing, workflowRoot, text)`
   - Test: src/dashboard/harness/__tests__/run-setup.test.ts — `nextUnstartedSpec(workflowRoot, text)`
-  - Note: the `buildSetupView` cases (`src/dashboard/harness/__tests__/run-setup.test.ts:552`) keep every asserted value: regression guards for the moved expression. `nextUnstartedSpec` called with no text holds at base: a regression guard.
+  - Note: the `buildSetupView` cases (`src/dashboard/harness/__tests__/run-setup.test.ts:552`) keep every asserted value: regression guards for the moved expression. `nextUnstartedSpec` (`src/dashboard/harness/run-setup.ts:230`) called with no text holds at base: a regression guard.
   - Purpose: The Specs builder and the setup view read one heading rule and one "next" rule.
   - _Leverage: src/dashboard/harness/run-setup.ts:23, src/dashboard/harness/run-setup.ts:202-205, src/dashboard/harness/run-setup.ts:230-239, src/core/spec-routing-deriver.ts:20_
   - _Requirements: 1.2, 2.5, 2.8_
@@ -47,7 +47,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
   - File: src/dashboard/shell/types.ts
   - File: src/dashboard/shell/__tests__/spec-rows.test.ts
   - Test: src/dashboard/shell/__tests__/spec-rows.test.ts — `buildSpecBlock(project, liveRuns, cache)`
-  - Note: `buildSpecRows` and `buildSpecDetail` stay until tasks 5 and 10; their suites keep every asserted value. The `isSpecClosed` suite (`src/dashboard/shell/__tests__/spec-rows.test.ts:620`) is a regression guard.
+  - Note: `buildSpecRows` (`src/dashboard/shell/__tests__/spec-rows.test.ts:279`) and `buildSpecDetail` (`src/dashboard/shell/__tests__/spec-rows.test.ts:483`) stay until tasks 5 and 10; their suites keep every asserted value. The `isSpecClosed` suite (`src/dashboard/shell/__tests__/spec-rows.test.ts:620`) is a regression guard.
   - Purpose: The decomposition of one store as numbered lines with one state word and one fact.
   - _Leverage: src/dashboard/shell/spec-rows.ts:78-82, src/dashboard/shell/spec-rows.ts:149-154, src/dashboard/harness/run-setup.ts:246-261, src/core/index-generator.ts:59-91, src/core/deferral-storage.ts:277-305_
   - _Requirements: 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
@@ -94,7 +94,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
   - File: e2e/worktree-visual.spec.ts
   - File: e2e/worktree-board.spec.ts
   - Test: src/dashboard/__tests__/shell-routes.test.ts — `GET /api/shell/usage`
-  - Note: the closed-specs route and its cases stay until task 10. `src/dashboard/__tests__/controller-dashboard-routes.test.ts:172` is a regression guard. The visual parity test drops the `row` kind (D29): after this task one view at most renders a row.
+  - Note: the closed-specs route and its cases stay until the removal task. `src/dashboard/__tests__/controller-dashboard-routes.test.ts:172` is a regression guard. The visual parity test (`e2e/worktree-visual.spec.ts:415`) drops the `row` kind (D29): after this task one view at most renders a row.
   - Purpose: The Usage page answers how much of the week is left and how fast it goes.
   - _Leverage: src/dashboard/multi-server.ts:887-889, src/dashboard_frontend/src/modules/shell/UsagePage.tsx:95-102, src/dashboard_frontend/src/modules/shell/UsagePage.tsx:117-120, e2e/worktree-board.spec.ts:3531-3581, e2e/worktree-visual.spec.ts:415-420_
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.7, 4.8, 5.1, 5.2, 5.3, 5.4, 5.5, 8.1_
@@ -143,7 +143,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
 
 - [ ] 11. Run the end-to-end verification
   - File: e2e/worktree-shell.spec.ts
-  - Note: verification task: no `- Test:` seam, implementer-only; it changes no file. Requirement 3 AC 6 and requirement 8 AC 7 hold at base: `src/tools/__tests__/harness.test.ts` and `src/tools/__tests__/spec-index.test.ts` are their regression guards.
+  - Note: verification task: no `- Test:` seam, implementer-only; it changes no file. Requirement 3 AC 6 and requirement 8 AC 7 hold at base: `src/tools/__tests__/harness.test.ts` and `src/tools/__tests__/spec-index.test.ts` are their regression guards. The design's "Unchanged artifacts the decomposition names" — the overview and project watchers, the spec-index and deferrals tools, the usage action and the rate-limit file — stay unchanged, as the full suite confirms.
   - Purpose: Prove the entry's four verification steps on the merged tree.
   - _Leverage: ./playwright.worktree.config.ts, src/tools/__tests__/harness.test.ts, src/tools/__tests__/spec-index.test.ts_
   - _Requirements: 3.6, 8.6, 8.7_
@@ -170,3 +170,4 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
 ## Revision History
 
 - **v1** (2026-11-14) — Initial draft.
+  - **Lint pass.** 6 fixed (L-1,L-2,L-3,L-4,L-6,L-7). L-1 — task 11 now names the design component "Unchanged artifacts the decomposition names", so coverage resolves. L-2/L-3/L-4/L-7 — anchored each stray identifier to its base location (`nextUnstartedSpec`→run-setup.ts:230, `buildSpecRows`→spec-rows.test.ts:279, `buildSpecDetail`→:483 full path, `row`→worktree-visual.spec.ts:415) so each resolves in its line's joined ranges. L-6 — reworded task 7's "task 10" to "the removal task" (cleanup note, not a dependency; house idiom). Rejected: L-5 — `blocks` is the to-be-built wire key this task introduces (retro F5/F9 class), no base range holds it; `rows` resolves at the cited cases; suppression carries it. L-8 — task 10 is a deletion task routed implementer-only per agent-rules (retro P10), so no `- Test:` line is correct.
