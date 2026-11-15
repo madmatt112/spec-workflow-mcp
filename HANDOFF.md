@@ -201,6 +201,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-15 | dashboard-plain-pages | implementation | tasks 10/11 | design-defect | task 11's "name the task whose files fail" restriction assumes npm test failures trace to this spec; these 13 fail identically at base commit 1054a946, in files untouched by tasks 1-10 (project-manager-durable.test.ts, evals/graders.test.ts, evals/runner.test.ts, log-implementation.test.ts, projectPath.test.ts) — full details at /tmp/scratchpad/sdd/dashboard-plain-pages/task-11-fix-1-report.md |
 | 2026-11-15 | dashboard-plain-pages | implementation | tasks 11/11 | complete | PR #219 |
 | 2026-11-15 | dashboard-plain-pages | retrospective |  | retro-ready | 12 findings, 10 proposals |
+| 2026-11-15 | dashboard-plain-pages | closeout | items 10/10 | closed | 3 done, 2 to-do, 5 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1681,3 +1682,13 @@ Gotchas:
 | Verifier-skipped | task 11 (gate-only review, retro P6/P15) |
 | Next | none |
 | Gotchas | none |
+
+## dashboard-plain-pages — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 10/10: 3 done, 2 to-do, 5 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/220 |
+| To-dos | P2: needs server code (gate-rules.ts, red-green.ts) + eval case; a tracked fix task, not a spec-store direct commit; P3: recorded decision is a tracked fix task isolating the suite from the SDD env (source change), not a doc edit |
+| Gotchas | none |
+

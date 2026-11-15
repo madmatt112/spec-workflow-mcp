@@ -1,6 +1,6 @@
 # Retrospective plan — dashboard-plain-pages
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-11-15
 
 ## Approved proposals
