@@ -250,3 +250,25 @@
 {"ts":"2026-11-15T07:18:02.120Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-11-15T07:18:02.121Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"retro: 10 proposals for 12 findings"}
 {"ts":"2026-11-15T07:18:02.121Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"12 findings, 10 proposals"}
+{"ts":"2026-11-15T14:20:10.530Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/10"}
+{"ts":"2026-11-15T14:20:10.535Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P1","title":"P1 (F1) — Anticipated proxy work needs no change."}
+{"ts":"2026-11-15T14:20:10.535Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-11-15T14:20:10.535Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P4","title":"P4 (F4) — No independent change; removed by P2 and P3."}
+{"ts":"2026-11-15T14:20:10.536Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P4","outcome":"skipped"}
+{"ts":"2026-11-15T14:20:10.536Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P6","title":"P6 (F6) — Desired behaviour; no change."}
+{"ts":"2026-11-15T14:20:10.536Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P6","outcome":"skipped"}
+{"ts":"2026-11-15T14:20:10.536Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P7","title":"P7 (F7) — Early adjudication worked; no change."}
+{"ts":"2026-11-15T14:20:10.536Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-11-15T14:20:10.536Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P9","title":"P9 (F9) — No new change; resolved by P2 and P3."}
+{"ts":"2026-11-15T14:20:10.537Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P9","outcome":"skipped"}
+{"ts":"2026-11-15T14:20:10.545Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P2","title":"P2 (F2) — Generalize the config-support carve-out to `e2e/helpers/` seed files."}
+{"ts":"2026-11-15T14:20:10.545Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P3","title":"P3 (F3) — Give the base-failure case a truthful outcome, after classifying it."}
+{"ts":"2026-11-15T14:20:10.545Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P8","title":"P8 (F8) — Decide the red-commit rule for provably-red-on-base e2e ids."}
+{"ts":"2026-11-15T14:20:10.586Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-15T14:23:23.095Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.end","agent":"sdd-implementer","input":"24","output":"14861","cacheWrite":"68645","cacheRead":"618074","tokens":"701604","cacheWrite5m":"0","cacheWrite1h":"68645","model":"claude-opus-4-8"}
+{"ts":"2026-11-15T14:23:23.096Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-11-15T14:23:23.116Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P8 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-15T14:23:28.971Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P8 pass risk low"}
+{"ts":"2026-11-15T14:23:29.008Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P2","outcome":"to-do"}
+{"ts":"2026-11-15T14:23:29.008Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P3","outcome":"to-do"}
+{"ts":"2026-11-15T14:23:29.008Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P8","outcome":"done"}
