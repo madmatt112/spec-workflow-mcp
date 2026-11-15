@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 → 7; 3 → 4 → 5; 8 → 9; tasks 5, 7 and 9 → 10; task 11 runs last. Each page task (5, 7, 9) changes its wire or route, its frontend page and the end-to-end suites that read that page in one commit, so no page is left empty between tasks. Each task leaves `npx tsc --noEmit` and every vitest suite green; tsc does not cover `src/dashboard_frontend/` (`./tsconfig.json:20`), so frontend tasks prove their code through `src/dashboard/__tests__/frontend-build.test.ts` (a vite build) and Playwright. Line citations are to base 1054a946; where an earlier task here edited the file, the named symbol is the anchor and the implementer re-resolves the line. If SPEC_WORKFLOW_SHARED_ROOT is set in the session, run vitest as `env -u SPEC_WORKFLOW_SHARED_ROOT -u SPEC_WORKFLOW_WORKSPACE npx vitest run …`. Tasks 1 and 6 add new modules, so expect at least two verifier spawns. Task 9 carries `kind: e2e`; tasks 10 and 11 carry no `- Test:` seam; all three route implementer-only.
 
-- [ ] 1. Add the usage log module
+- [x] 1. Add the usage log module
   - File: src/controller/usage-log.ts
   - File: src/controller/__tests__/usage-log.test.ts
   - Test: src/controller/__tests__/usage-log.test.ts — `appendUsageLine(line, now)`

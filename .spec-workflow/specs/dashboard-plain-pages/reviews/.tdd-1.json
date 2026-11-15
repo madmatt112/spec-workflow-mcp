@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/usage-log.test.ts"],"seams":{"src/controller/__tests__/usage-log.test.ts":"appendUsageLine(line, now)"},"redCommit":"5d654e36bcaab62cc23c229fb34e0761172f5015","baseSha":"1054a9469e635c1c63176b77854359b69933beab","base":"structural-red","head":"pass","amended":false,"judged":null}

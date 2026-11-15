@@ -23,3 +23,9 @@
 6. Proceed with this spec, or do nothing and defer it? Reply "Proceed" to continue, or pick "Do nothing — defer this spec" (optionally followed by a reason) to end the run now — the drafted requirements are kept and no design, tasks or implementation run.
    Options: Proceed | Do nothing — defer this spec
    Answer: Proceed
+
+## Gate B
+
+1. Approve the task plan, or annotate it? Reply "Approve" to proceed, or type an annotation to revise the tasks once before implementation.
+   Options: Approve | Annotate
+   Answer: Approve
