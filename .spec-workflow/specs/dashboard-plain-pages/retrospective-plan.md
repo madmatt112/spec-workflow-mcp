@@ -146,3 +146,5 @@ One line per proposal, written by the close-out phase.
 - P2: to-do (human) — needs server code (gate-rules.ts, red-green.ts) + eval case; a tracked fix task, not a spec-store direct commit
 - P3: to-do (human) — recorded decision is a tracked fix task isolating the suite from the SDD env (source change), not a doc edit
 - P8: done — 904bed5746d0c6f0f09532f9e0e388872ca184e6
+- P10: done — 0178c502760def0964003c13a2360ae0e0e17bb1
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/220

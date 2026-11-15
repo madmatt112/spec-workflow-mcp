@@ -272,3 +272,10 @@
 {"ts":"2026-11-15T14:23:29.008Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P2","outcome":"to-do"}
 {"ts":"2026-11-15T14:23:29.008Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P3","outcome":"to-do"}
 {"ts":"2026-11-15T14:23:29.008Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-11-15T14:23:43.818Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P10","title":"P10 (F10) — Make the completion gate's deferral count truthful."}
+{"ts":"2026-11-15T14:23:43.829Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-15T14:28:45.335Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.end","agent":"sdd-implementer","input":"68","output":"21401","cacheWrite":"83791","cacheRead":"2346163","tokens":"2451423","cacheWrite5m":"0","cacheWrite1h":"83791","model":"claude-opus-4-8"}
+{"ts":"2026-11-15T14:28:45.335Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-11-15T14:28:45.356Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P10 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-15T14:28:53.356Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P10 pass risk low"}
+{"ts":"2026-11-15T14:28:53.380Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P10","outcome":"done"}
