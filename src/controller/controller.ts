@@ -28,6 +28,7 @@ import { readMergeRules, type MergeRules } from './merge.js';
 import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
+import { appendUsageLine } from './usage-log.js';
 import {
   runOnce, cancelRun, discardRun, branchHeld, branchReused, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
@@ -729,7 +730,10 @@ export class Controller extends EventEmitter {
       ensureWorktree: (run) => this.ensureWorktree(run),
       tokenCap: (run) => this.tokenCap(run),
       windowBlock: () => this.windowBlock(),
-      onRateLimit: (w) => { void this.persistRateLimit(w); },
+      onRateLimit: (w, run) => {
+        void this.persistRateLimit(w);
+        appendUsageLine({ v: 1, ts: this.now().toISOString(), sevenDay: { utilization: w.sevenDay.utilization }, run: run ?? null }, this.now);
+      },
       onActivity: (a) => recordActivity(a),
       isCancelled: (id) => this.cancelled.has(id),
       setInFlight: () => { /* the driver persists run.inFlight itself */ },

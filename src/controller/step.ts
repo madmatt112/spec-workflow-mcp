@@ -132,7 +132,7 @@ export interface StepSpec {
   /** `SPEC_WORKFLOW_SHARED_ROOT`. */
   sharedRoot?: string;
   onActivity?: (activity: ActivityEvent) => void;
-  onRateLimit?: (windows: RateLimitWindows) => void;
+  onRateLimit?: (windows: RateLimitWindows, run?: string | null) => void;
   /** Reports every parsed stream line and the step's end (design C2/C3). */
   heartbeat?: StepHeartbeat;
   /**
@@ -499,7 +499,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
       } else if (type === 'rate_limit_event') {
         const info = (event.rate_limit_info ?? {}) as Record<string, unknown>;
         lastRateLimit = mapWindows(info);
-        spec.onRateLimit?.(lastRateLimit);
+        spec.onRateLimit?.(lastRateLimit, spec.runId ?? null);
       } else if (type === 'result') {
         resultEvent = event;
         if (event.structured_output != null) structuredEvent = event;

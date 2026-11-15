@@ -403,7 +403,7 @@ export interface RunDeps {
   /** Is a usage window above the threshold now? `resumeAt` is its ISO reset. */
   windowBlock(): { blocked: boolean; resumeAt?: string };
   /** Persist the latest windows from a step or the supervisor stream. */
-  onRateLimit(windows: RateLimitWindows): void;
+  onRateLimit(windows: RateLimitWindows, run?: string | null): void;
   /** Forward a step's live tool activity for the Run page's "Live now" line. */
   onActivity?(activity: ControllerActivity): void;
   /** Has the operator cancelled this run? Checked between steps. */
