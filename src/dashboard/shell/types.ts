@@ -31,6 +31,24 @@ export interface SpecDetail {
   files: { name: string; path: string; size: number; modified: string }[];
 }
 
+/** One Specs-block line's harness state (design.md C3, Data Models). */
+export type SpecWord = 'live' | 'closed' | 'deferred' | 'next' | 'stopped' | 'not started';
+
+/** One decomposition heading's line on the Specs block (design.md C3, Data Models). */
+export interface SpecLine {
+  number: string;
+  spec: string;
+  word: SpecWord;
+  fact: string | null;
+}
+
+/** One store's Specs block: every decomposition heading's line (design.md C3, Data Models). */
+export interface SpecBlock {
+  projectId: string;
+  projectName: string;
+  lines: SpecLine[];
+}
+
 /**
  * One Usage-page row per closed spec (design.md C9, Requirement 3). `w` and
  * `wUnknown` come from `buildUsageReport`; `wPerTask` and `pctOfBaseline` are null
