@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/spec-rows.test.ts"],"seams":{"src/dashboard/shell/__tests__/spec-rows.test.ts":"buildSpecBlock(project, liveRuns, cache)"},"redCommit":"a35464b5c00fde1d52ea25887cf406aa0c86a305","baseSha":"a2fc5775804e85a389c78a779ed3758a35ffe98e","base":"structural-red","head":"pass","amended":false,"judged":null}

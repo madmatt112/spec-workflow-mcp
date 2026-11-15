@@ -42,7 +42,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
   - _Requirements: 1.2, 2.5, 2.8_
   - _Prompt: Task: Per design C4 (requirement 1 AC 2, requirement 2 AC 5, AC 8), add `decompositionHeadings` and `launchableSpec` to `src/dashboard/harness/run-setup.ts` with the signatures design C4 pins, give `nextUnstartedSpec` (`:230-239`) an optional trailing `text`, and make `buildSetupView` call `launchableSpec` in place of the expression at `:202-205` | Restrictions: Reuse `DECOMPOSITION_HEADING` (`:23`); do not change `decompositionEntry` or `decompositionPosition` | Success: `decompositionHeadings` returns `number`, `spec` and `deferredTag` per heading in file order, so a `34` heading before a `12` heading stays first; `deferredTag` is true for a `(Deferred)` tail and false with no tag; a `## ` heading and a `### ` line with no backticked name give no entry; empty text gives `[]`; `nextUnstartedSpec` given text reads the text, not the file, in a root with no `decomposition.md`; `launchableSpec` returns the routed spec for an `active` routing, else the first heading with no spec directory and no deferred tag, else `null`; `npx tsc --noEmit` and `npx vitest run src/dashboard/harness/__tests__/run-setup.test.ts` pass_
 
-- [ ] 4. Build one Specs block per store
+- [x] 4. Build one Specs block per store
   - File: src/dashboard/shell/spec-rows.ts
   - File: src/dashboard/shell/types.ts
   - File: src/dashboard/shell/__tests__/spec-rows.test.ts
