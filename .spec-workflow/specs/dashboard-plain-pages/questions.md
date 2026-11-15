@@ -24,8 +24,15 @@
    Options: Proceed | Do nothing — defer this spec
    Answer: Proceed
 
+
 ## Gate B
 
 1. Approve the task plan, or annotate it? Reply "Approve" to proceed, or type an annotation to revise the tasks once before implementation.
    Options: Approve | Annotate
    Answer: Approve
+
+## escalation w-416fa655
+
+1. Design defect (tasks 10/11): task 11's "name the task whose files fail" restriction assumes npm test failures trace to this spec; these 13 fail identically at base commit 1054a946, in files untouched by tasks 1-10 (project-manager-durable.test.ts, evals/graders.test.ts, evals/runner.test.ts, log-implementation.test.ts, projectPath.test.ts) — full details at /tmp/scratchpad/sdd/dashboard-plain-pages/task-11-fix-1-report.md. Rule on it; your answer goes into the next implementer brief.
+   Task: 11
+   Answer: Ruled: environment, not this spec. CI is green at base 1054a946. Overwatch reproduced: the 2 attribution-trailer cases (evals graders/runner) fail because a global git commit-msg hook (core.hooksPath ~/.config/git/hooks) strips Co-Authored-By trailers; with GIT_CONFIG_GLOBAL=/dev/null they pass 43/43. The other 11 (project-manager-durable, log-implementation, projectPath) pass in a plain shell and fail only under the controller spawn env (SPEC_WORKFLOW_SHARED_ROOT / SPEC_WORKFLOW_WORKSPACE). Treat the npm test check as passing when the only failures are these 13 identical-at-base cases in files no task of this spec touches; change no file for them. Complete task 11 with every other check as it reported (all pass).

@@ -1671,4 +1671,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 10/11, stopped: design-defect — task 11's "name the task whose files fail" restriction assumes npm test failures trace to this spec; these 13 fail identically at base commit 1054a946, in files untouched by tasks 1-10 (project-manager-durable.test.ts, evals/graders.test.ts, evals/runner.test.ts, log-implementation.test.ts, projectPath.test.ts) — full details at /tmp/scratchpad/sdd/dashboard-plain-pages/task-11-fix-1-report.md |
+| State | tasks 11/11, last commit 9cf1a1bf, next completion gate |

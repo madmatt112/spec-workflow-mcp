@@ -64,3 +64,8 @@ Cost: 1 implementer spawn(s)
 task 11's "name the task whose files fail" restriction assumes npm test failures trace to this spec; these 13 fail identically at base commit 1054a946, in files untouched by tasks 1-10 (project-manager-durable.test.ts, evals/graders.test.ts, evals/runner.test.ts, log-implementation.test.ts, projectPath.test.ts) — full details at /tmp/scratchpad/sdd/dashboard-plain-pages/task-11-fix-1-report.md
 Evidence: task 11 · mark run-20261114-021941 6665f1ac
 Cost: unknown
+
+## 2026-11-15T07:00:22Z · implementation · task 11 · inefficiency
+task 11 closed: 2 fix round(s), outcome gate
+Evidence: task 11 · mark run-20261114-021941 8ef35cbc
+Cost: 3 implementer spawn(s)
