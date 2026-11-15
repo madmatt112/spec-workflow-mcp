@@ -191,6 +191,11 @@ describe('shell hub wiring and routes (task 7)', () => {
     await fsp.mkdir(stateHomeDir, { recursive: true });
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = stateHomeDir;
+    // Isolates controllerHome() (rate-limit.json, usage-log.jsonl, runs/) from
+    // whatever another test in this worker's shared VITEST_WORKER SDD_HOME has
+    // left behind (e.g. the real run record the launch test below writes), so
+    // the task 7 usage-route test's "empty home" is actually empty.
+    process.env.SDD_HOME = join(tempDir, '.sdd-home');
 
     // Project alpha: HANDOFF routes to spec-a; ledger starts with only a
     // run.start row (no open phase yet).
@@ -406,6 +411,34 @@ describe('shell hub wiring and routes (task 7)', () => {
     expect(res.status).toBe(404);
     const body: any = await res.json();
     expect(body).toEqual({ error: 'Project not found' });
+  });
+
+  // Contract for dashboard-plain-pages task 7 (design.md C7 "GET
+  // /api/shell/usage ... from buildUsageView(this.projectManager
+  // .getAllProjects())"; task 7 _Prompt Success "the route on an empty home
+  // returns window: null, burn: null, runs: []").
+  //
+  // Criterion "the route on an empty home returns window: null, burn: null,
+  //   runs: []":
+  //   Pre-condition: this `beforeEach`'s two registered projects (alpha,
+  //   beta), with no `rate-limit.json`, no `usage-log.jsonl` and no run
+  //   record ever written under this test's own `SDD_HOME` (set below, so
+  //   this test's reads of `buildUsageView`'s collaborators — `readRateLimit`,
+  //   `readUsageLog` and `listRunsSync`, all keyed off `controllerHome()` —
+  //   never see state left by another test in this file, such as the launch
+  //   test's real run record).
+  //   Test: `GET /api/shell/usage`.
+  //   Observable result: status 200, body exactly `{ window: null, burn:
+  //   null, runs: [] }`.
+  //   Expected-value source: the task 7 _Prompt's literal Success sentence,
+  //   which is design C6's stated behaviour of `buildUsageView` with no
+  //   rate-limit file, no log line and no run record (C6 steps 1-3; C1's
+  //   `readRateLimit`/`readUsageLog`/`computeBurn` null/`[]` defaults).
+  it('GET /api/shell/usage on an empty home returns no window, no burn and no runs', async () => {
+    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/usage`);
+    expect(res.status).toBe(200);
+    const body: any = await res.json();
+    expect(body).toEqual({ window: null, burn: null, runs: [] });
   });
 
   // Contract for task 12 (design.md C10; Requirement 3 AC1, AC10).

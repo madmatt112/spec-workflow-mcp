@@ -3528,9 +3528,11 @@ test.describe('Shell (top bar, gear and tab title)', () => {
       });
     });
 
-    // `usage-closed-specs` only renders once some registered project has a
-    // closed spec, so this seeds one in its own store. It must not rely on
-    // `SPEC_WORKFLOW_SHARED_ROOT`: the review gate runs with that unset.
+    // A registered project with a closed spec, seeded in its own store, so
+    // the Specs page's block list carries overflow content; must not rely on
+    // `SPEC_WORKFLOW_SHARED_ROOT`: the review gate runs with that unset. No
+    // `rate-limit.json` has been written anywhere in the suite by this point,
+    // so the Usage page's window is null (usage-no-window).
     const { projectId: overflowProjectId, dir: overflowDir } = await registerNextProject(
       page,
       'overflow',
@@ -3577,7 +3579,7 @@ test.describe('Shell (top bar, gear and tab title)', () => {
       await checkNoOverflow('Specs');
 
       await page.getByTestId('nav-usage').click();
-      await expect(page.getByTestId('usage-closed-specs')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('usage-no-window')).toBeVisible({ timeout: 15000 });
       await checkNoOverflow('Usage');
 
       await page.getByTestId('nav-deferrals').click();

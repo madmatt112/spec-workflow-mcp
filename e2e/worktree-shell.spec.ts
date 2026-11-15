@@ -5,7 +5,8 @@ import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './hel
 import { DeferralStorage } from '../src/core/deferral-storage.js';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
 import { secretPath } from '../src/controller/access.js';
-import type { PrRead, RunRecord } from '../src/controller/state.js';
+import { writeRateLimit, type PrRead, type RunRecord } from '../src/controller/state.js';
+import { usageLogPath } from '../src/controller/usage-log.js';
 
 /**
  * Browser checks of the four-route dashboard shell (design Testing Strategy
@@ -301,26 +302,97 @@ test.describe.serial('Dashboard shell end to end', () => {
     await expect(rows).toHaveCount(0);
   });
 
-  test('(R3) the Usage page shows both projects, no placeholder, two trend lines and one baseline', async ({ page }) => {
+  test('(R3) the Usage page shows the window, the burn and each live run\'s fit', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/#/usage');
 
-    await expect(page.getByTestId('usage-closed-specs')).toBeVisible({ timeout: 15000 });
-    // The placeholder is gone.
-    await expect(page.getByTestId('usage-placeholder')).toHaveCount(0);
+    const now = Date.now();
+    const anchorTs = new Date(now - 25 * 3600 * 1000).toISOString();
+    const newestTs = new Date(now - 60 * 1000).toISOString();
 
-    // Both projects' closed specs show as rows.
-    await expect(page.getByTestId(`usage-row-${projectA.projectId}-closed-alpha`)).toBeVisible();
-    await expect(page.getByTestId(`usage-row-${projectB.projectId}-closed-beta`)).toBeVisible();
+    // A seven-day window at 50% utilisation, reset three days out (design C9,
+    // Requirement 4 AC1: per cent left = 100 − round(utilization × 100) = 50).
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.1, resetsAt: new Date(now + 2 * 3600 * 1000).toISOString() },
+      sevenDay: { utilization: 0.5, resetsAt: new Date(now + 3 * 24 * 3600 * 1000).toISOString() },
+      updated: new Date(now).toISOString(),
+    });
 
-    // One trend line per plotted project, one dashed baseline (project A only).
-    await expect(page.locator('[data-testid^="trend-line-"]')).toHaveCount(2);
-    await expect(page.locator('[data-testid^="trend-baseline-"]')).toHaveCount(1);
+    // Two log lines 25 h and 1 min old (requirement 4 AC4-AC6, design D7/D8):
+    // the anchor (25 h old, at or before the 24 h cutoff) to the newest (1 min
+    // old) step is 0.1 utilisation, a burn of 10.0 points; the newest line
+    // carries runA's id so attributedUse(lines, runA.id) is positive (D8).
+    const runAId = 'e2e-usage-impl-a';
+    const runBId = 'e2e-usage-doc-b';
+    const logLines = [
+      { v: 1, ts: anchorTs, sevenDay: { utilization: 0.4 }, run: null },
+      { v: 1, ts: newestTs, sevenDay: { utilization: 0.5 }, run: runAId },
+    ];
+    await writeFile(usageLogPath(), logLines.map((l) => JSON.stringify(l)).join('\n') + '\n', 'utf-8');
+
+    // spec-a's tasks.md: 5 tasks, 3 done, so remaining = 2. With use = 0.1 and
+    // done = 3 (the three task.done rows below), (use/done) × remaining =
+    // 0.0667, well inside the headroom (1 − 0.5 = 0.5): "fits" (design D8).
+    await writeFile(
+      join(projectA.projectPath, '.spec-workflow', 'specs', 'spec-a', 'tasks.md'),
+      '- [x] 1. first task\n- [x] 2. second task\n- [x] 3. third task\n- [ ] 4. fourth task\n- [ ] 5. fifth task\n',
+      'utf-8',
+    );
+    await appendFile(
+      ledgerPathA,
+      ['1', '2', '3']
+        .map((task) => JSON.stringify({ ts: newestTs, type: 'task.done', run: runAId, spec: 'spec-a', task }))
+        .join('\n') + '\n',
+      'utf-8',
+    );
+
+    // One live run per project (src/dashboard/shell/live-runs.ts:10-18): A is
+    // `waiting` in the implementation phase (gets a fit); B is `waiting` in a
+    // document phase (requirement 5 AC3: fit always "not known yet" there).
+    const runA: RunRecord = {
+      v: 1, id: runAId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'waiting', phase: 'implementation',
+      created: new Date(now).toISOString(), updated: new Date(now).toISOString(),
+      tokens: { input: 100, output: 50, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runB: RunRecord = {
+      v: 1, id: runBId, project: projectB.projectId,
+      codeRoot: projectB.projectPath, specStore: projectB.projectPath,
+      spec: 'spec-b', worktree: projectB.projectPath, branch: 'feat/spec-b',
+      status: 'waiting', phase: 'requirements',
+      created: new Date(now).toISOString(), updated: new Date(now).toISOString(),
+      tokens: { input: 20, output: 10, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDirA = join(sddHome(), 'runs', runA.id);
+    const runDirB = join(sddHome(), 'runs', runB.id);
+    await mkdir(runDirA, { recursive: true });
+    await mkdir(runDirB, { recursive: true });
+    await writeFile(join(runDirA, 'run.json'), JSON.stringify(runA, null, 2) + '\n', 'utf-8');
+    await writeFile(join(runDirB, 'run.json'), JSON.stringify(runB, null, 2) + '\n', 'utf-8');
+
+    try {
+      await page.goto('/#/usage');
+
+      await expect(page.getByTestId('usage-window')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('usage-left')).toContainText('50');
+      await expect(page.getByTestId('usage-burn')).toContainText('10.0');
+
+      await expect(page.getByTestId(`usage-fit-${runAId}`)).toContainText('fits before the reset');
+      await expect(page.getByTestId(`usage-fit-${runBId}`)).toContainText('not known yet');
+
+      // No five-hour window anywhere on the page (requirement 4 AC7).
+      await expect(page.getByText(/five.hour/i)).toHaveCount(0);
+    } finally {
+      await rm(runDirA, { recursive: true, force: true });
+      await rm(runDirB, { recursive: true, force: true });
+    }
   });
 
   test('no page scrolls sideways at widths 1000 and 375', async ({ page }) => {
     const markerFor = (path: string) =>
-      path === '/usage' ? 'usage-closed-specs' : path === '/' ? 'band-needs-you' : 'page-list';
+      path === '/usage' ? 'usage-window' : path === '/' ? 'band-needs-you' : 'page-list';
 
     for (const width of [1000, 375]) {
       await page.setViewportSize({ width, height: 900 });
