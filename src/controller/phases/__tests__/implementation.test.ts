@@ -343,6 +343,31 @@ describe('runImplementationPhase', () => {
     expect(git(fx.repo, ['log', '--format=%B'])).not.toMatch(/Co-Authored-By|Generated with/);
   }, 60000);
 
+  // Pre-condition: two verifier info-findings filed owner=harness exist in the spec
+  // store before the completion gate runs. Call: runImplementationPhase to completion.
+  // Observable: the `implementation complete` retro line names them apart from owner
+  // deferrals ("0 owner deferrals added (2 harness info-findings)"), not a bare
+  // "0 deferrals added". Source of expected value: retro P10/F10 — the count is a
+  // floor that names what it omits.
+  it('names harness-owned info-findings apart from owner deferrals in the completion line (F10)', async () => {
+    fx = await setup([taskMd('1', 'Add the first module', ['src/a.js'])]);
+    const storage = new DeferralStorage(fx.repo);
+    for (const i of [1, 2]) {
+      await storage.create({
+        title: `harness info-finding ${i}`, originSpec: fx.spec, originPhase: 'implementation',
+        revisitTrigger: 'next spec', tags: ['info'], supersedes: null, owner: 'harness',
+        body: { context: 'c', decision: 'd', revisitCriteria: 'r' },
+      });
+    }
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+    expect(outcome.result).toBe('complete');
+
+    const retro = readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8');
+    expect(retro).toContain('0 owner deferrals added (2 harness info-findings)');
+  }, 60000);
+
   // Contract (task 1, requirement 12 AC 2): pre-condition a single unmarked
   // low-risk task; call runImplementationPhase with a context whose
   // onStepSpawn captures every call; observe the call for the task's

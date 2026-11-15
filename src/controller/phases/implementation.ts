@@ -1348,10 +1348,14 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     // The HANDOFF marker (design C6 flow step 5, D8): it makes the e2e pass above stale,
     // so the next re-entry runs the e2e loop again.
     ctx.ledger.note('completion handoff written');
+    // Name harness-owned info-findings apart from owner deferrals so the count is a
+    // floor that names what it omits, not a bare zero (retro P10/F10).
+    const ownerDeferrals = mine.filter((d) => d.owner !== 'harness');
+    const harnessFindings = mine.filter((d) => d.owner === 'harness');
     retro(phase, 'phase', 'cleanup',
       `implementation complete: ${p.total} tasks, ${ledgerRows().filter((r) => r.type === 'spawn.usage' && /^fix task/.test(r.role ?? '')).length} fix rounds, `
       + `${ledgerRows().filter((r) => r.type === 'spawn.usage' && /^adjudicate/.test(r.role ?? '')).length} adjudications, `
-      + `${ledgerRows().filter((r) => r.type === 'spawn.start').length} spawns, ${mine.length} deferrals added`,
+      + `${ledgerRows().filter((r) => r.type === 'spawn.start').length} spawns, ${ownerDeferrals.length} owner deferrals added (${harnessFindings.length} harness info-findings)`,
       'completion gate', 'see the ledger');
     await commitSpecStore(`docs(sdd): ${specName} implemented, ${p.total} tasks`);
 
