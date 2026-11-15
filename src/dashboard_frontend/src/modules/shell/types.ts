@@ -8,18 +8,22 @@ import type { PhaseRow } from '../harness/types';
 
 // --- Shell wire shapes copied from src/dashboard/shell/types.ts ---
 
-export interface SpecListRow {
+/** One Specs-block line's harness state (design.md C3, Data Models). */
+export type SpecWord = 'live' | 'closed' | 'deferred' | 'next' | 'stopped' | 'not started';
+
+/** One decomposition heading's line on the Specs block (design.md C3, Data Models). */
+export interface SpecLine {
+  number: string;
+  spec: string;
+  word: SpecWord;
+  fact: string | null;
+}
+
+/** One store's Specs block: every decomposition heading's line (design.md C3, Data Models). */
+export interface SpecBlock {
   projectId: string;
   projectName: string;
-  spec: string;
-  state: 'live' | 'in-progress' | 'abandoned' | 'closed' | 'deferred' | 'not-started';
-  phase: string | null;
-  versions: { requirements: string | null; design: string | null; tasks: string | null };
-  tasks: { done: number; total: number };
-  prs: number[];
-  deferrals: number;
-  retro: string | null;
-  updated: string | null;
+  lines: SpecLine[];
 }
 
 export interface SpecDetail {
@@ -227,7 +231,7 @@ export interface ControllerDeploy {
 }
 
 export type ShellMessage =
-  | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
+  | { type: 'shell-specs'; data: { blocks: SpecBlock[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }

@@ -8,20 +8,6 @@ import type { PhaseRow } from '../../watch/ledger.js';
 import type { StagedAction } from '../../advisor/actions.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
 
-export interface SpecListRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  state: 'live' | 'in-progress' | 'abandoned' | 'closed' | 'deferred' | 'not-started';
-  phase: string | null;
-  versions: { requirements: string | null; design: string | null; tasks: string | null };
-  tasks: { done: number; total: number };
-  prs: number[];
-  deferrals: number;
-  retro: string | null;
-  updated: string | null;
-}
-
 export interface SpecDetail {
   order: number | null;
   dependsOn: string | null;
@@ -214,7 +200,7 @@ export interface ControllerRun {
 }
 
 export type ShellMessage =
-  | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
+  | { type: 'shell-specs'; data: { blocks: SpecBlock[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }

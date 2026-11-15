@@ -118,12 +118,15 @@ export async function seedVisualSuite(options: {
   );
 
   // Each worktree's decomposition names its own spec (D30), so the Specs
-  // page's block carries a line, not "No decomposition".
+  // page's block carries a line, not "No decomposition". wt-a's decomposition
+  // also names `closed-alpha` (seeded below), so the Specs view renders a
+  // `closed` (success-tone) line matching the Deferrals view's `resolved`
+  // pill for the cross-view style-parity case.
   const wtB = harness.getWorktree('wt-b');
   await mkdir(join(wtA.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
   await writeFile(
     join(wtA.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
-    '### 1. `spec-a`\n',
+    '### 1. `spec-a`\n\n### 2. `closed-alpha`\n',
     'utf-8'
   );
   await mkdir(join(wtB.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });

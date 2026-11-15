@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useWs } from '../ws/WebSocketProvider';
 import { useProjects } from '../projects/ProjectProvider';
 import { deployRetryCap } from './deploy';
-import type { SpecListRow, ControllerWait, ControllerRun, StagedAction, ControllerDeploy } from './types';
+import type { SpecBlock, ControllerWait, ControllerRun, StagedAction, ControllerDeploy } from './types';
 
 export interface DeferralRecord {
   id: string;
@@ -19,7 +19,7 @@ export interface DeferralsPayload {
 }
 
 interface ShellContextType {
-  specRows: SpecListRow[];
+  specBlocks: SpecBlock[];
   controllerWaits: ControllerWait[];
   controllerRuns: ControllerRun[];
   controllerActions: StagedAction[];
@@ -43,7 +43,7 @@ const ShellContext = createContext<ShellContextType | undefined>(undefined);
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   const { subscribe, unsubscribe, watchView, setRetryCap } = useWs();
   const { projects } = useProjects();
-  const [specRows, setSpecRows] = useState<SpecListRow[]>([]);
+  const [specBlocks, setSpecBlocks] = useState<SpecBlock[]>([]);
   const [controllerWaits, setControllerWaits] = useState<ControllerWait[]>([]);
   const [controllerRuns, setControllerRuns] = useState<ControllerRun[]>([]);
   const [controllerActions, setControllerActions] = useState<StagedAction[]>([]);
@@ -57,7 +57,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   // Hold the overview view for the life of the page and listen for its pushes.
   useEffect(() => {
-    const onSpecs = (data: { rows: SpecListRow[] }) => setSpecRows(data?.rows ?? []);
+    const onSpecs = (data: { blocks: SpecBlock[] }) => setSpecBlocks(data?.blocks ?? []);
     const onControllerWaits = (data: { waits: ControllerWait[] }) => {
       const waits = data?.waits ?? [];
       setControllerWaits(waits);
@@ -124,13 +124,13 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   }, [projectKey]);
 
   const value = useMemo<ShellContextType>(() => ({
-    specRows,
+    specBlocks,
     controllerWaits,
     controllerRuns,
     controllerActions,
     controllerDeploy,
     deferralsByProject,
-  }), [specRows, controllerWaits, controllerRuns, controllerActions, controllerDeploy, deferralsByProject]);
+  }), [specBlocks, controllerWaits, controllerRuns, controllerActions, controllerDeploy, deferralsByProject]);
 
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }

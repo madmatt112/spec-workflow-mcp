@@ -1,11 +1,13 @@
 // src/dashboard/shell/spec-rows.ts
 //
-// The Specs page rows and one spec's detail panel (design.md C5, Requirement 5).
-// `buildSpecRows` returns one row per spec of a project with its harness state;
-// `buildSpecDetail` returns one spec's panel data — paths, runs, phases and
-// deferrals, but never any file content (Requirement 5 AC 5, D9). Every file read
-// goes through the task-1 FileCache, so a missing, empty or torn file yields a
-// null or empty field and never throws.
+// The Specs page's blocks (design.md C3, Requirements 1 and 2) and one spec's
+// detail panel (design.md C5, Requirement 5). `buildSpecBlock` returns one
+// Specs block per store, one line per decomposition heading, with a
+// first-match harness-state word and fact; `buildSpecDetail` returns one
+// spec's panel data — paths, runs, phases and deferrals, but never any file
+// content (Requirement 5 AC 5, D9). Every file read goes through the task-1
+// FileCache, so a missing, empty or torn file yields a null or empty field
+// and never throws.
 import { readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { buildModel, parseHandoffPhaseRows } from '../../watch/ledger.js';
@@ -17,7 +19,7 @@ import type { SpecIndexEntry } from '../../types.js';
 import type { ProjectContext } from '../project-manager.js';
 import type { RunRecord } from '../../controller/state.js';
 import { decompositionHeadings, launchableSpec } from '../harness/run-setup.js';
-import type { SpecListRow, SpecDetail, SpecWord, SpecLine, SpecBlock } from './types.js';
+import type { SpecDetail, SpecWord, SpecLine, SpecBlock } from './types.js';
 import { FileCache } from './file-cache.js';
 
 const SPEC_NAME_RE = /^[A-Za-z0-9._-]+$/;
@@ -44,14 +46,6 @@ function newestBy<T>(items: T[], dateOf: (t: T) => string | undefined): T | unde
   return best;
 }
 
-/** The later of two optional date strings, or null when neither parses. */
-function pickNewer(a: string | undefined, b: string | undefined): string | null {
-  const ta = timeOf(a);
-  const tb = timeOf(b);
-  if (ta === -Infinity && tb === -Infinity) return null;
-  return ta >= tb ? (a ?? null) : (b ?? null);
-}
-
 /** The value of the first `Status:` line of a plan, or null. */
 function firstStatusValue(text: string | undefined): string | null {
   if (!text) return null;
@@ -63,17 +57,6 @@ function firstStatusValue(text: string | undefined): string | null {
 }
 
 /**
- * True when the ledger's newest run ended `abandoned`: its last `run.start` has a
- * `run.end` row with status `abandoned` and no later run started.
- */
-export function newestRunAbandoned(ledger: LedgerEvent[]): boolean {
-  const starts = ledger.filter((e) => e.type === 'run.start' && e.run);
-  const newest = starts[starts.length - 1]?.run;
-  if (!newest) return false;
-  return ledger.some((e) => e.type === 'run.end' && e.run === newest && e.status === 'abandoned');
-}
-
-/**
  * The one closed-spec rule for the Specs page and the usage rows (design D15):
  * true when a phase-log row has phase `closeout` and result `closed`, or when
  * the first word of the plan's first `Status:` value is `CLOSED`.
@@ -82,107 +65,6 @@ export function isSpecClosed(phaseRows: PhaseRow[], planText: string | undefined
   const closedByRow = phaseRows.some((r) => r.phase === 'closeout' && r.result === 'closed');
   const closedByPlan = (firstStatusValue(planText) ?? '').split(/\s+/)[0] === 'CLOSED';
   return closedByRow || closedByPlan;
-}
-
-/**
- * One row per snapshot spec (every spec directory) with its harness state
- * (design.md C5). State precedence is first-match (D10): `live`, `closed`,
- * `deferred`, `not-started`, `abandoned` (the newest run ended abandoned), else
- * `in-progress`.
- */
-export async function buildSpecRows(
-  project: ProjectContext,
-  liveSpec: string | null,
-  cache: FileCache = new FileCache(),
-): Promise<SpecListRow[]> {
-  const { projectId, projectName } = project;
-  const workflowRoot = join(project.projectPath, '.spec-workflow');
-  const specsDir = join(workflowRoot, 'specs');
-  const handoffMd = cache.text(handoffPath(workflowRoot));
-  const deferralStorage = new DeferralStorage(project.projectPath);
-
-  const { active, deferred, other } = await new IndexGenerator(project.projectPath).snapshot();
-  const entries = [...active, ...deferred, ...other];
-
-  // Count the project's deferred records per origin spec with one scan of the
-  // deferrals store. A per-spec `list({ originSpec })` in the loop below re-reads
-  // and re-parses every deferral file once for each spec, which dominates the
-  // shell-feed flush on a project with many specs.
-  const deferredByOriginSpec = new Map<string, number>();
-  for (const d of await deferralStorage.list({ status: 'deferred' })) {
-    if (d.originSpec) deferredByOriginSpec.set(d.originSpec, (deferredByOriginSpec.get(d.originSpec) ?? 0) + 1);
-  }
-
-  const rows: SpecListRow[] = [];
-  for (const entry of entries) {
-    const spec = entry.name;
-    const specDir = join(specsDir, spec);
-    const phaseRows = parseHandoffPhaseRows(handoffMd, spec);
-    const ledger = cache.jsonl<LedgerEvent>(join(specDir, 'harness-events.jsonl'));
-    const model = buildModel({ spec, ledger, activity: [] });
-    const retroText = cache.text(join(specDir, 'retrospective-plan.md'));
-    const statusValue = firstStatusValue(retroText);
-
-    // state — first match wins (D10).
-    const hasDocOrLedger = ['requirements.md', 'design.md', 'tasks.md', 'harness-events.jsonl'].some(
-      (f) => cache.text(join(specDir, f)) !== undefined,
-    );
-    let state: SpecListRow['state'];
-    if (liveSpec === spec) state = 'live';
-    else if (isSpecClosed(phaseRows, retroText)) state = 'closed';
-    else if (entry.deferred) state = 'deferred';
-    else if (!hasDocOrLedger) state = 'not-started';
-    else if (newestRunAbandoned(ledger)) state = 'abandoned';
-    else state = 'in-progress';
-
-    // phase — live phase, else newest phase-log stage, else the entry's currentPhase.
-    const phase = model.livePhase?.phase || newestBy(phaseRows, (r) => r.date)?.phase || entry.currentPhase || null;
-
-    // versions — per document phase, the newest v-plus-digits phase-log State, else null.
-    const versionOf = (docPhase: string): string | null => {
-      const matching = phaseRows.filter((r) => r.phase === docPhase && VERSION_RE.test(r.state));
-      return newestBy(matching, (r) => r.date)?.state ?? null;
-    };
-    const versions = {
-      requirements: versionOf('requirements'),
-      design: versionOf('design'),
-      tasks: versionOf('tasks'),
-    };
-
-    // prs — distinct PR numbers in phase-log notes, ascending.
-    const prNums = new Set<number>();
-    for (const r of phaseRows) {
-      for (const m of r.note.matchAll(/PR #(\d+)/g)) prNums.add(Number(m[1]));
-    }
-    const prs = [...prNums].sort((a, b) => a - b);
-
-    // retro — the first word of the plan's Status value, else null.
-    const retro = statusValue ? statusValue.split(/\s+/)[0] : null;
-
-    // updated — the newer of the newest ledger ts and the newest phase-log date, else null.
-    let newestLedgerTs: string | undefined;
-    for (const e of ledger) {
-      if (newestLedgerTs === undefined || timeOf(e.ts) > timeOf(newestLedgerTs)) newestLedgerTs = e.ts;
-    }
-    const updated = pickNewer(newestLedgerTs, newestBy(phaseRows, (r) => r.date)?.date);
-
-    const deferrals = deferredByOriginSpec.get(spec) ?? 0;
-
-    rows.push({
-      projectId,
-      projectName,
-      spec,
-      state,
-      phase,
-      versions,
-      tasks: { done: entry.taskProgress.completed, total: entry.taskProgress.total },
-      prs,
-      deferrals,
-      retro,
-      updated,
-    });
-  }
-  return rows;
 }
 
 /** `order` and `dependsOn` from the decomposition entry that names the spec in backticks. */
