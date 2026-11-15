@@ -287,3 +287,31 @@
 {"ts":"2026-11-15T14:34:10.197Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P5 pass risk low"}
 {"ts":"2026-11-15T14:34:10.219Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P5","outcome":"done"}
 {"ts":"2026-11-15T14:34:12.341Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"phase.end","phase":"closeout","result":"closed","state":"items 10/10","note":"3 done, 2 to-do, 5 skipped"}
+{"ts":"2026-11-15T14:34:14.331Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp not-ready (no workflow run yet for a1da288 (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-11-15T14:34:46.871Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-15T14:35:18.715Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-15T14:35:50.649Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-15T14:36:22.765Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-15T14:36:54.916Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #220 of spec-workflow-mcp)"}
+{"ts":"2026-11-15T15:39:56.916Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/10"}
+{"ts":"2026-11-15T15:39:56.919Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P1","title":"P1 (F1) — Anticipated proxy work needs no change."}
+{"ts":"2026-11-15T15:39:56.920Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-11-15T15:39:56.920Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P4","title":"P4 (F4) — No independent change; removed by P2 and P3."}
+{"ts":"2026-11-15T15:39:56.920Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P4","outcome":"skipped"}
+{"ts":"2026-11-15T15:39:56.920Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P6","title":"P6 (F6) — Desired behaviour; no change."}
+{"ts":"2026-11-15T15:39:56.920Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P6","outcome":"skipped"}
+{"ts":"2026-11-15T15:39:56.920Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P7","title":"P7 (F7) — Early adjudication worked; no change."}
+{"ts":"2026-11-15T15:39:56.921Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-11-15T15:39:56.921Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P9","title":"P9 (F9) — No new change; resolved by P2 and P3."}
+{"ts":"2026-11-15T15:39:56.921Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P9","outcome":"skipped"}
+{"ts":"2026-11-15T15:39:56.932Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P2","title":"P2 (F2) — Generalize the config-support carve-out to `e2e/helpers/` seed files."}
+{"ts":"2026-11-15T15:39:56.932Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P3","title":"P3 (F3) — Give the base-failure case a truthful outcome, after classifying it."}
+{"ts":"2026-11-15T15:39:56.932Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"P8","title":"P8 (F8) — Decide the red-commit rule for provably-red-on-base e2e ids."}
+{"ts":"2026-11-15T15:39:56.980Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-15T15:42:33.350Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.end","agent":"sdd-implementer","input":"18","output":"12398","cacheWrite":"51110","cacheRead":"410902","tokens":"474428","cacheWrite5m":"0","cacheWrite1h":"51110","model":"claude-opus-4-8"}
+{"ts":"2026-11-15T15:42:33.350Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-11-15T15:42:33.377Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P8 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-15T15:42:35.672Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: item P8 pass risk low"}
+{"ts":"2026-11-15T15:42:35.710Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P2","outcome":"to-do"}
+{"ts":"2026-11-15T15:42:35.710Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P3","outcome":"to-do"}
+{"ts":"2026-11-15T15:42:35.711Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P8","outcome":"done"}
