@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/deferral-resolve-route.test.ts"],"seams":{"src/dashboard/__tests__/deferral-resolve-route.test.ts":"POST /api/projects/:projectId/deferrals/:deferralId/resolve"},"redCommit":"f1b9b968c4290938a46721e1cb7306a2f1dc6d7a","baseSha":"8ea61efeb775183c7c7482199b2eda311c8c5028","base":"assertion-red","head":"pass","amended":true,"judged":null}
