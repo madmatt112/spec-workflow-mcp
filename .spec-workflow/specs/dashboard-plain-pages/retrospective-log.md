@@ -59,3 +59,8 @@ Cost: 1 implementer spawn(s)
 task 10 closed: 0 fix round(s), outcome pass
 Evidence: task 10 · mark run-20261114-021941 68ff84e3
 Cost: 1 implementer spawn(s)
+
+## 2026-11-15T06:31:56Z · implementation · task 11 · deviation
+task 11's "name the task whose files fail" restriction assumes npm test failures trace to this spec; these 13 fail identically at base commit 1054a946, in files untouched by tasks 1-10 (project-manager-durable.test.ts, evals/graders.test.ts, evals/runner.test.ts, log-implementation.test.ts, projectPath.test.ts) — full details at /tmp/scratchpad/sdd/dashboard-plain-pages/task-11-fix-1-report.md
+Evidence: task 11 · mark run-20261114-021941 6665f1ac
+Cost: unknown
