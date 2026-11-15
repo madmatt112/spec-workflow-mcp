@@ -199,6 +199,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-14 | dashboard-plain-pages | design | v2 | approved | 2 rounds |
 | 2026-11-14 | dashboard-plain-pages | tasks | v2 | approved | 2 rounds |
 | 2026-11-15 | dashboard-plain-pages | implementation | tasks 10/11 | design-defect | task 11's "name the task whose files fail" restriction assumes npm test failures trace to this spec; these 13 fail identically at base commit 1054a946, in files untouched by tasks 1-10 (project-manager-durable.test.ts, evals/graders.test.ts, evals/runner.test.ts, log-implementation.test.ts, projectPath.test.ts) — full details at /tmp/scratchpad/sdd/dashboard-plain-pages/task-11-fix-1-report.md |
+| 2026-11-15 | dashboard-plain-pages | implementation | tasks 11/11 | complete | PR #219 |
 
 ## Current state — 2026-08-04
 
@@ -1673,7 +1674,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 11/11, implemented 2026-11-15 |
 | Implemented | 2026-11-15 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/219 |
 | Coverage | logCoverage 11/11; reviewCoverage 11/11; TDD 8 task(s): assertion-red 3, structural-red 4, vacuous 0, inconclusive 1 |
 | Deferrals | 0 added by this spec, 46 open in all |
 | Verifier-skipped | task 11 (gate-only review, retro P6/P15) |
