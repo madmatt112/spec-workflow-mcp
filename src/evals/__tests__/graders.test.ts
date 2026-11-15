@@ -785,16 +785,68 @@ describe('GRADERS registry', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  // Pre-condition: `base..HEAD` adds a test file whose lines name every post-condition id the
+  // grader's `needles` argument lists.
+  // Test: GRADERS['commit-adds-text'].grade({ report: {}, fixture }, { repo: '.', needles }).
+  // Observable result: pass is true.
+  // Expected-value source: catalogue-and-model retro P5/P10 — the red tests must name each
+  // numbered design post-condition (and pin each shipped config constant) before code exists.
+  it('commit-adds-text passes when the new commit adds all the needles', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'budget.test.js'), "assert PC1\nassert PC2\nassert PC3\n");
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'red']);
+
+    const result = GRADERS['commit-adds-text'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.', needles: ['PC1', 'PC2', 'PC3'] }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: `base..HEAD` adds a test file that names only some of the grader's `needles`.
+  // Test: GRADERS['commit-adds-text'].grade({ report: {}, fixture }, { repo: '.', needles }).
+  // Observable result: pass is false and the reason names the missing needle.
+  // Expected-value source: catalogue-and-model retro P5/P10 — an unpinned post-condition or
+  // constant is the silent coverage gap this eval catches.
+  it('commit-adds-text fails and names the needle the new commit omits', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'budget.test.js'), "assert PC1\nassert PC2\n");
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'red']);
+
+    const result = GRADERS['commit-adds-text'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.', needles: ['PC1', 'PC2', 'PC3'] }
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('PC3');
+    rmSync(repo, { recursive: true, force: true });
+  });
+
   // Pre-condition: task 2's four graders, task 3's six git-state graders, the retro-P6
   // task-no-test-seam grader, the retro-P1/P2 task-success-scope and task-success-eslint
-  // graders and the retro-P12 report-names-path grader are all registered.
+  // graders, the retro-P12 report-names-path grader and the catalogue-and-model-P5/P10
+  // commit-adds-text grader are all registered.
   // Test: Object.keys(GRADERS).
-  // Observable result: the registry lists exactly the fourteen named graders.
+  // Observable result: the registry lists exactly the fifteen named graders.
   // Expected-value source: task 3's _Prompt: "the registry lists ten graders", plus the
-  // retro-P6, retro-P1/P2 and retro-P12 graders.
-  it('registers fourteen graders including the six git-state graders', () => {
+  // retro-P6, retro-P1/P2, retro-P12 and catalogue-and-model-P5/P10 graders.
+  it('registers fifteen graders including the six git-state graders', () => {
     expect(Object.keys(GRADERS).sort()).toEqual([
       'clean-tree',
+      'commit-adds-text',
       'item-commit-on-branch',
       'item-status',
       'new-commit-count',
