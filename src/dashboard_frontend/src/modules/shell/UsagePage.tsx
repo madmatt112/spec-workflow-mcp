@@ -1,116 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { useShell } from './ShellProvider';
-import { Group, Row } from './primitives';
 import { ui } from '../ui/ui';
-import { UsageTrend } from './UsageTrend';
-import type { UsageSpecRow } from './types';
+import type { UsageRunLine, UsageView } from './types';
 
 /**
- * Usage (controller-tasks.md T10; controller-design.md §9). The two subscription
- * windows — five-hour and seven-day — as utilisation bars with their reset time,
- * read from `/api/controller/rate-limit` and refreshed on every `controller-runs`
- * push (a run's token write is a cue the windows moved). Below them, W per task
- * per closed spec as a grouped table and a plain-SVG trend (design C11), read
- * from `/api/shell/usage/closed-specs` on the same refetch cue.
+ * Usage (design C9; Requirement 4, 5). How much of the week is left, how
+ * fast it is going, and whether each live run's remaining tasks fit before
+ * the reset — all computed by the server (`GET /api/shell/usage`) and
+ * refetched on mount and on every `controller-runs` push (design C9); the
+ * frontend reads no log.
  */
 
-interface RateWindow {
-  utilization: number; // 0..1
-  resetsAt: string;    // ISO
-}
-
-interface RateLimitFile {
-  v: number;
-  fiveHour: RateWindow;
-  sevenDay: RateWindow;
-  updated: string;
-}
-
-/** Human time remaining until an ISO reset, e.g. `resets in 2h 5m`. */
-function fmtReset(iso: string, now: number): string {
-  const at = Date.parse(iso);
-  if (!Number.isFinite(at)) return 'reset time unknown';
-  const secs = Math.max(0, Math.floor((at - now) / 1000));
+/** Human time remaining to an instant, e.g. `2h 5m`. */
+function timeTo(atMs: number, nowMs: number): string {
+  const secs = Math.max(0, Math.floor((atMs - nowMs) / 1000));
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
-  if (secs === 0) return 'resetting now';
-  if (h) return `resets in ${h}h ${m}m`;
-  if (m) return `resets in ${m}m`;
-  return `resets in ${secs}s`;
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m`;
+  return `${secs}s`;
 }
 
-function UsageBar({ title, window, now }: { title: string; window: RateWindow; now: number }) {
-  const pct = Math.max(0, Math.min(100, Math.round(window.utilization * 100)));
-  const hot = window.utilization >= 0.95;
-  return (
-    <div className={`${ui.panel} p-4`} data-testid={`usage-window-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-[var(--text-primary)]">{title}</span>
-        <span className="text-sm tabular-nums text-[var(--text-secondary)]">{pct}%</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-inset)]">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            backgroundColor: hot ? 'var(--tone-danger-fg)' : 'var(--accent)',
-          }}
-          data-testid={`usage-bar-${title.toLowerCase().replace(/\s+/g, '-')}`}
-        />
-      </div>
-      <p className="mt-1 text-xs text-[var(--text-muted)]">{fmtReset(window.resetsAt, now)}</p>
-    </div>
-  );
+/** "fits before the reset" / "does not fit before the reset" / "not known yet" (design D20). */
+function fitText(fit: UsageRunLine['fit']): string {
+  if (fit === 'fits') return 'fits before the reset';
+  if (fit === 'does-not-fit') return 'does not fit before the reset';
+  return 'not known yet';
 }
 
-/** Table cell text per design C11. */
-function wText(r: UsageSpecRow): string {
-  if (r.w === null) return 'no usage recorded';
-  const prefix = r.wUnknown > 0 ? '≥ ' : '';
-  const suffix = r.wUnknown > 0 ? ` (${r.wUnknown} unknown)` : '';
-  return `${prefix}${Math.round(r.w).toLocaleString('en-US')}${suffix}`;
-}
-
-function wPerTaskText(r: UsageSpecRow): string {
-  if (r.wPerTask === null) return r.w === null ? 'no usage recorded' : 'no tasks';
-  const prefix = r.wUnknown > 0 ? '≥ ' : '';
-  return `${prefix}${Math.round(r.wPerTask).toLocaleString('en-US')}`;
-}
-
-function pctText(r: UsageSpecRow): string {
-  if (r.baseline === null || r.baseline === 0) return 'no baseline';
-  if (r.pctOfBaseline === null) return '—';
-  return `${Math.round(r.pctOfBaseline).toLocaleString('en-US')}%`;
+function burnText(burn: number | null): string {
+  return burn === null ? 'not known yet' : `${burn.toFixed(1)} pts in 24 h`;
 }
 
 export function UsagePage() {
   const { controllerRuns } = useShell();
-  const [rate, setRate] = useState<RateLimitFile | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [view, setView] = useState<UsageView | null>(null);
   const [tick, setTick] = useState(Date.now());
-  const [rows, setRows] = useState<UsageSpecRow[]>([]);
-  const [rowsLoaded, setRowsLoaded] = useState(false);
 
-  // Refetch on mount and whenever a `controller-runs` push changes the list.
   useEffect(() => {
     let alive = true;
-    fetch('/api/controller/rate-limit')
+    fetch('/api/shell/usage')
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (alive) { setRate(data); setLoaded(true); } })
-      .catch(() => { if (alive) setLoaded(true); });
-    return () => { alive = false; };
-  }, [controllerRuns]);
-
-  // Closed-spec rows on the same cue; a failed fetch keeps the last rows.
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/shell/usage/closed-specs')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (alive && data && Array.isArray(data.rows)) { setRows(data.rows); setRowsLoaded(true); }
-        else if (alive) setRowsLoaded(true);
-      })
-      .catch(() => { if (alive) setRowsLoaded(true); });
+      .then((data) => { if (alive && data) setView(data); })
+      .catch(() => {});
     return () => { alive = false; };
   }, [controllerRuns]);
 
@@ -119,67 +51,65 @@ export function UsagePage() {
     return () => clearInterval(id);
   }, []);
 
+  const rateWindow = view?.window ?? null;
+  const resetAtMs = rateWindow ? Date.parse(rateWindow.resetsAt) : NaN;
+  const windowReset = rateWindow !== null && Number.isFinite(resetAtMs) && resetAtMs <= tick;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="usage-window">
       <h1 className="text-base font-semibold text-[var(--text-primary)]">{'Usage'}</h1>
 
-      {loaded && !rate ? (
-        <p data-testid="usage-no-windows" className="text-sm text-[var(--text-muted)]">
-          {'No usage window seen yet — it appears once a run reports one.'}
+      {rateWindow === null ? (
+        <p data-testid="usage-no-window" className="text-sm text-[var(--text-muted)]">
+          {'No usage window seen yet'}
         </p>
-      ) : rate ? (
-        <div className="space-y-3" data-testid="usage-windows">
-          <UsageBar title={'Five hour'} window={rate.fiveHour} now={tick} />
-          <UsageBar title={'Seven day'} window={rate.sevenDay} now={tick} />
+      ) : windowReset ? (
+        <div className={`${ui.panel} p-4`}>
+          <p data-testid="usage-left" className="text-sm text-[var(--text-primary)]">
+            {'window reset — no reading since'}
+          </p>
         </div>
-      ) : null}
+      ) : (
+        <div className={`${ui.panel} space-y-2 p-4`}>
+          <p data-testid="usage-left" className="text-display tabular-nums text-[var(--text-primary)]">
+            {`${100 - Math.round(rateWindow.utilization * 100)}% left`}
+          </p>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-inset)]">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.max(0, Math.min(100, Math.round(rateWindow.utilization * 100)))}%`,
+                backgroundColor: 'var(--accent)',
+              }}
+            />
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            {`resets ${new Date(resetAtMs).toLocaleString()} (${timeTo(resetAtMs, tick)})`}
+          </p>
+        </div>
+      )}
 
-      {rowsLoaded && rows.length === 0 ? (
-        <p data-testid="usage-no-closed" className="text-sm text-[var(--text-muted)]">
-          {'No closed specs yet.'}
-        </p>
-      ) : rows.length > 0 ? (
-        <div className="space-y-4" data-testid="usage-closed-specs">
-          <UsageTrend rows={rows} />
-          {groupByProject(rows).map(({ projectId, projectName, rows: projectRows }) => (
-            <Group key={projectId} name={`usage-${projectId}`} title={projectName} count={projectRows.length}>
-              <Row>
-                <span className="min-w-0 flex-1 text-xs font-medium text-[var(--text-muted)]">{'Spec'}</span>
-                <span className="hidden w-24 shrink-0 text-xs text-[var(--text-muted)] sm:inline">{'Closed'}</span>
-                <span className="w-28 shrink-0 text-right text-xs text-[var(--text-muted)]">{'W'}</span>
-                <span className="hidden w-14 shrink-0 text-right text-xs text-[var(--text-muted)] sm:inline">{'Tasks'}</span>
-                <span className="w-24 shrink-0 text-right text-xs text-[var(--text-muted)]">{'W/task'}</span>
-                <span className="hidden w-24 shrink-0 text-right text-xs text-[var(--text-muted)] md:inline">{'% baseline'}</span>
-              </Row>
-              {projectRows.map((r) => (
-                <Row key={r.spec} testId={`usage-row-${projectId}-${r.spec}`}>
-                  <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{r.spec}</span>
-                  <span className="hidden w-24 shrink-0 text-xs text-[var(--text-secondary)] sm:inline">
-                    {r.closeDate ? r.closeDate.slice(0, 10) : '—'}
-                  </span>
-                  <span className="w-28 shrink-0 text-right tabular-nums text-[var(--text-secondary)]">{wText(r)}</span>
-                  <span className="hidden w-14 shrink-0 text-right tabular-nums text-[var(--text-secondary)] sm:inline">
-                    {r.tasks === 0 ? 'no tasks' : r.tasks}
-                  </span>
-                  <span className="w-24 shrink-0 text-right tabular-nums text-[var(--text-secondary)]">{wPerTaskText(r)}</span>
-                  <span className="hidden w-24 shrink-0 text-right tabular-nums text-[var(--text-secondary)] md:inline">{pctText(r)}</span>
-                </Row>
-              ))}
-            </Group>
+      <p data-testid="usage-burn" className="text-sm text-[var(--text-secondary)]">
+        {burnText(view?.burn ?? null)}
+      </p>
+
+      {view && view.runs.length > 0 && (
+        <div className="space-y-2">
+          {view.runs.map((run) => (
+            <div key={run.runId} className={`${ui.panel} p-3`} data-testid={`usage-run-${run.runId}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-medium text-[var(--text-primary)]">{run.projectName}</span>
+                <span className="text-[var(--text-secondary)]">{run.spec}</span>
+                <span className="text-[var(--text-muted)]">{run.phase ?? '—'}</span>
+                <span className="tabular-nums text-[var(--text-secondary)]">{run.tokens.toLocaleString('en-US')}</span>
+              </div>
+              <p data-testid={`usage-fit-${run.runId}`} className="mt-1 text-xs text-[var(--text-muted)]">
+                {run.remaining !== null ? `${run.remaining} tasks remaining — ${fitText(run.fit)}` : fitText(run.fit)}
+              </p>
+            </div>
           ))}
         </div>
-      ) : null}
+      )}
     </div>
   );
-}
-
-/** Group rows by project, preserving the server's project and close-date order. */
-function groupByProject(rows: UsageSpecRow[]): { projectId: string; projectName: string; rows: UsageSpecRow[] }[] {
-  const out: { projectId: string; projectName: string; rows: UsageSpecRow[] }[] = [];
-  for (const r of rows) {
-    const last = out[out.length - 1];
-    if (last && last.projectId === r.projectId) last.rows.push(r);
-    else out.push({ projectId: r.projectId, projectName: r.projectName, rows: [r] });
-  }
-  return out;
 }

@@ -51,6 +51,28 @@ export interface UsageSpecRow {
   pctOfBaseline: number | null;
 }
 
+// Hand copy of src/dashboard/shell/types.ts UsageRunLine (task 7); keep in step.
+export interface UsageRunLine {
+  runId: string;
+  projectId: string;
+  projectName: string;
+  spec: string;
+  phase: string | null;
+  tokens: number;
+  /** `total − completed` of the spec's `tasks.md`; null outside the implementation phase. */
+  remaining: number | null;
+  /** `null` reads "not known yet" (design D20). */
+  fit: 'fits' | 'does-not-fit' | null;
+}
+
+// Hand copy of src/dashboard/shell/types.ts UsageView (task 7); keep in step.
+export interface UsageView {
+  window: { utilization: number; resetsAt: string } | null;
+  /** Percentage points over the last 24 h; null with no anchor line. */
+  burn: number | null;
+  runs: UsageRunLine[];
+}
+
 // --- Controller waits (controller-design.md §7; T4) ---------------------------
 // Hand copy of src/dashboard/shell/types.ts; keep them in step.
 

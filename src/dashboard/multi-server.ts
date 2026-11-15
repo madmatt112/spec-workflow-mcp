@@ -31,6 +31,7 @@ import type { HarnessMessage, SetupInput, SetupView, ValidationError } from './h
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
 import { buildUsageRows } from './shell/usage-rows.js';
+import { buildUsageView } from './shell/usage-view.js';
 import { FileCache } from './shell/file-cache.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord } from '../controller/waits.js';
@@ -640,6 +641,12 @@ export class MultiProjectDashboardServer {
         return a.closeDate < b.closeDate ? 1 : -1; // newest first
       });
       return { rows };
+    });
+
+    // Usage page (design C6/C7; Requirement 4, 5). The window, the burn and
+    // one line per live run of every registered project, enabled or not.
+    this.app.get('/api/shell/usage', async () => {
+      return await buildUsageView(this.projectManager.getAllProjects());
     });
 
     // ── Harness control-pane routes (design C7; Requirement 3) ──
