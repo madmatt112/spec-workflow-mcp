@@ -22,9 +22,7 @@ import { fileURLToPath } from 'url';
 //  - the aggregate test (pre-condition: the real FE tree as tasks 2-4 leave
 //    it; call: walking FE_ROOT through scanFile; observable: zero hits;
 //    source: Requirement 2.1/2.3) runs against the real, unmodified FE
-//    source, so it is red now for the same reason design cites for T2/T3:
-//    the task-5 sweep (bridge removal, UsageTrend/RunPage fixes) has not
-//    happened yet.
+//    source and passes now that the task-5 sweep has landed.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FE_ROOT = join(HERE, '..', '..', 'dashboard_frontend', 'src');
