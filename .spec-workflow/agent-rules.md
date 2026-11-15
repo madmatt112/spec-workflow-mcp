@@ -231,6 +231,11 @@ re-measured on the next real spec.
   controller-actions snapshot updating), then asserts; it never asserts the absence
   immediately after triggering the action. The decomposition names the settling signal in
   the task's Success line so the test author writes the wait, not a later fix round.
+- A task that adds e2e test cases may land the new test ids in the same commit as the
+  route or page change (a coupled commit), rather than a separate `test(...): task N red`
+  commit, when the new ids are provably absent from the base page. The gate proves
+  red-on-base from that absence, so the coupled commit is a sound audit trail, not a gap,
+  and the task review does not re-flag it (retro P8).
 
 ## Sensitive paths
 
