@@ -109,7 +109,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 6 �
   - _Requirements: 7.4, 7.5, 7.6_
   - _Prompt: Task: Per design C7 and design D19 (requirement 7 AC 4 to AC 6), add `POST /api/projects/:projectId/deferrals/:deferralId/resolve` beside the deferrals list route (`src/dashboard/multi-server.ts:600-607`), with the six checks in the order design C7 pins, then `deferralsHandler` (`src/tools/deferrals.ts:116-153`). Build the test server as `src/dashboard/__tests__/shell-routes.test.ts:173` does | Restrictions: Read only `resolution` from the body; write nothing before every check passes; no access-control exemption | Success: a valid request answers 200 `{ ok: true }` and the record file holds `status: resolved`, the trimmed text as `resolution` and a `resolvedAt`; a 2,000-character resolution is accepted; an empty, a whitespace-only, a non-string and a 2,001-character resolution each answer 400; an unknown project, an unknown id and an id holding an encoded slash each answer 404 with an `error`; an already resolved record answers 409 naming its status; a corrupt record file answers 409 with the reindex message; each error case leaves the record file bytes unchanged; `npx tsc --noEmit` and `npx vitest run src/dashboard/__tests__/deferral-resolve-route.test.ts` pass_
 
-- [ ] 9. Render the Deferrals page as the queue with Resolve
+- [x] 9. Render the Deferrals page as the queue with Resolve
   - File: src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx
   - File: e2e/worktree-shell.spec.ts
   - File: e2e/worktree-visual.spec.ts
