@@ -582,7 +582,7 @@ function runTokens(specDir: string, runId: string): TokenTotals {
 }
 
 /** Total W (all four token kinds) of a run's totals. */
-function totalW(t: TokenTotals): number {
+export function totalW(t: TokenTotals): number {
   return t.input + t.output + t.cacheWrite + t.cacheRead;
 }
 

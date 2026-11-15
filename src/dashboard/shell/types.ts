@@ -54,6 +54,28 @@ export interface UsageSpecRow {
   pctOfBaseline: number | null;
 }
 
+/** One live run's Usage-page line (design.md C6/C9, Data Models). */
+export interface UsageRunLine {
+  runId: string;
+  projectId: string;
+  projectName: string;
+  spec: string;
+  phase: string | null;
+  tokens: number;
+  /** `total − completed` of the spec's `tasks.md`; null outside the implementation phase. */
+  remaining: number | null;
+  /** `null` reads "not known yet" (design D20). */
+  fit: 'fits' | 'does-not-fit' | null;
+}
+
+/** The Usage page's one route payload (design.md C6/C9, Data Models). */
+export interface UsageView {
+  window: { utilization: number; resetsAt: string } | null;
+  /** Percentage points over the last 24 h; null with no anchor line. */
+  burn: number | null;
+  runs: UsageRunLine[];
+}
+
 // --- Controller waits (controller-design.md §7; T4) ---------------------------
 // The design §7 wire shape, minus the `specDir` the server strips. The frontend
 // keeps a hand copy in src/dashboard_frontend/src/modules/shell/types.ts.
