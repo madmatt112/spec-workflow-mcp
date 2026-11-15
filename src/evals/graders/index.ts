@@ -12,6 +12,7 @@ import { grade as taskNoTestSeam } from './task-no-test-seam.js';
 import { grade as taskSuccessScope } from './task-success-scope.js';
 import { grade as taskSuccessEslint } from './task-success-eslint.js';
 import { grade as reportNamesPath } from './report-names-path.js';
+import { grade as commitAddsText } from './commit-adds-text.js';
 import type { Grader } from './shared.js';
 
 export type { FixtureView, GradeInput, GradeResult, Grader } from './shared.js';
@@ -32,4 +33,5 @@ export const GRADERS: Record<string, Grader> = {
   'task-success-scope': { grade: taskSuccessScope },
   'task-success-eslint': { grade: taskSuccessEslint },
   'report-names-path': { grade: reportNamesPath },
+  'commit-adds-text': { grade: commitAddsText },
 };
