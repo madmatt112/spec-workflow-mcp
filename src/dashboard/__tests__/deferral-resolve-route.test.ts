@@ -130,6 +130,9 @@ describe('POST /api/projects/:projectId/deferrals/:deferralId/resolve (task 8)',
     // prune drops the registration before the server lists it.
     await fsp.mkdir(workspace, { recursive: true });
     workflowRoot = join(tempDir, 'project');
+    // workflowRootPath must also exist on disk, or the same startup prune
+    // (cleanupStaleProjects) drops the registration before the server lists it.
+    await fsp.mkdir(workflowRoot, { recursive: true });
 
     const registry = new ProjectRegistry();
     await registry.registerProject(workspace, process.pid, { workflowRootPath: workflowRoot });

@@ -11,6 +11,7 @@ import { WebSocket } from 'ws';
 import { validateAndCheckPort, DASHBOARD_TEST_MESSAGE } from './utils.js';
 import { ProjectManager } from './project-manager.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
+import { deferralsHandler } from '../tools/deferrals.js';
 import { IndexGenerator } from '../core/index-generator.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
 import {
@@ -605,6 +606,55 @@ export class MultiProjectDashboardServer {
         return reply.code(404).send({ error: 'Project not found' });
       }
       return await this.buildDeferralsPayload(project.projectPath);
+    });
+
+    // Resolve a deferred decision without a session (design C7; Requirement
+    // 7.4-7.6). Classifies the request with store reads first, then calls
+    // deferralsHandler (D19); writes nothing until every check passes.
+    this.app.post('/api/projects/:projectId/deferrals/:deferralId/resolve', async (request, reply) => {
+      const { projectId, deferralId } = request.params as { projectId: string; deferralId: string };
+      const body = (request.body ?? {}) as { resolution?: unknown };
+      const resolution = body.resolution;
+      if (typeof resolution !== 'string') {
+        return reply.code(400).send({ error: 'invalid-resolution' });
+      }
+      const trimmed = resolution.trim();
+      if (trimmed.length === 0 || trimmed.length > 2000) {
+        return reply.code(400).send({ error: 'invalid-resolution' });
+      }
+
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+
+      if (!/^[A-Za-z0-9_-]+$/.test(deferralId)) {
+        return reply.code(404).send({ error: 'Deferral not found' });
+      }
+
+      const storage = new DeferralStorage(project.projectPath);
+      const record = await storage.get(deferralId);
+      if (!record) {
+        if (!(await storage.fileExists(deferralId))) {
+          return reply.code(404).send({ error: 'Deferral not found' });
+        }
+        return reply.code(409).send({
+          error: `Deferral ${deferralId} exists on disk but its frontmatter could not be parsed. ` +
+            `Run the deferrals 'reindex' action to normalize the store, then retry.`
+        });
+      }
+      if (record.status !== 'deferred') {
+        return reply.code(409).send({ error: `Deferral ${deferralId} is already ${record.status}` });
+      }
+
+      const result = await deferralsHandler(
+        { action: 'resolve', projectPath: project.projectPath, id: deferralId, resolution: trimmed },
+        { projectPath: project.projectPath, workspacePath: project.workspacePath }
+      );
+      if (!result.success) {
+        return reply.code(409).send({ error: result.message });
+      }
+      return { ok: true };
     });
 
     // Shell spec detail panel (design C8). 404 for an unknown project or a bad,
