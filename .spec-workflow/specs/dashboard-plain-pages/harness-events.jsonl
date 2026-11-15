@@ -99,3 +99,14 @@
 {"ts":"2026-11-15T03:07:29.254Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","result":"yes/2","phase":"implementation","task":"2"}
 {"ts":"2026-11-15T03:08:26.772Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: task 2 pass risk low tdd assertion-red"}
 {"ts":"2026-11-15T03:08:26.780Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-15T03:08:26.923Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.pick","task":"3","title":"Share the decomposition heading list and the launchable rule"}
+{"ts":"2026-11-15T03:08:26.930Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"task 3 pick head cc7639c37667699f78c61436272a04d1ab5662dc"}
+{"ts":"2026-11-15T03:08:26.969Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.start","agent":"sdd-test-author","role":"author task 3","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-15T03:11:50.750Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.end","agent":"sdd-test-author","input":"60","output":"17166","cacheWrite":"88436","cacheRead":"2545155","tokens":"2650817","cacheWrite5m":"0","cacheWrite1h":"88436","model":"claude-sonnet-5"}
+{"ts":"2026-11-15T03:11:50.750Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-test-author","role":"author task 3","result":"none","phase":"implementation","task":"3"}
+{"ts":"2026-11-15T03:11:50.779Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"task 3 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-15T03:11:50.779Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.start","agent":"sdd-implementer","role":"implement task 3","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-15T03:16:24.930Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.end","agent":"sdd-implementer","input":"62","output":"12842","cacheWrite":"78563","cacheRead":"2519836","tokens":"2611303","cacheWrite5m":"0","cacheWrite1h":"78563","model":"claude-sonnet-5"}
+{"ts":"2026-11-15T03:16:24.930Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","result":"yes/3","phase":"implementation","task":"3"}
+{"ts":"2026-11-15T03:16:42.559Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"gate: task 3 pass risk low tdd structural-red"}
+{"ts":"2026-11-15T03:16:42.567Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"3","rounds":"0","outcome":"gate"}

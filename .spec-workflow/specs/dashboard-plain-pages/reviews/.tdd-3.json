@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/run-setup.test.ts"],"seams":{"src/dashboard/harness/__tests__/run-setup.test.ts":"decompositionHeadings(text)"},"redCommit":"c2752b1ec6b178b6483df7bcd75cb1b9b8ce9328","baseSha":"cc7639c37667699f78c61436272a04d1ab5662dc","base":"structural-red","head":"pass","amended":false,"judged":null}
