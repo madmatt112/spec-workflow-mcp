@@ -4,50 +4,47 @@
 // Data Models). Types only, no runtime code. The frontend keeps a hand copy in
 // src/dashboard_frontend/src/modules/shell/types.ts, because root tsc excludes
 // the frontend.
-import type { PhaseRow } from '../../watch/ledger.js';
 import type { StagedAction } from '../../advisor/actions.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
 
-export interface SpecListRow {
+/** One Specs-block line's harness state (design.md C3, Data Models). */
+export type SpecWord = 'live' | 'closed' | 'deferred' | 'next' | 'stopped' | 'not started';
+
+/** One decomposition heading's line on the Specs block (design.md C3, Data Models). */
+export interface SpecLine {
+  number: string;
+  spec: string;
+  word: SpecWord;
+  fact: string | null;
+}
+
+/** One store's Specs block: every decomposition heading's line (design.md C3, Data Models). */
+export interface SpecBlock {
+  projectId: string;
+  projectName: string;
+  lines: SpecLine[];
+}
+
+/** One live run's Usage-page line (design.md C6/C9, Data Models). */
+export interface UsageRunLine {
+  runId: string;
   projectId: string;
   projectName: string;
   spec: string;
-  state: 'live' | 'in-progress' | 'abandoned' | 'closed' | 'deferred' | 'not-started';
   phase: string | null;
-  versions: { requirements: string | null; design: string | null; tasks: string | null };
-  tasks: { done: number; total: number };
-  prs: number[];
-  deferrals: number;
-  retro: string | null;
-  updated: string | null;
+  tokens: number;
+  /** `total − completed` of the spec's `tasks.md`; null outside the implementation phase. */
+  remaining: number | null;
+  /** `null` reads "not known yet" (design D20). */
+  fit: 'fits' | 'does-not-fit' | null;
 }
 
-export interface SpecDetail {
-  order: number | null;
-  dependsOn: string | null;
-  runs: { runId: string; start: string; end: string | null; status: string | null; tokens: number }[];
-  phases: PhaseRow[];
-  deferrals: { id: string; title: string; status: string }[];
-  files: { name: string; path: string; size: number; modified: string }[];
-}
-
-/**
- * One Usage-page row per closed spec (design.md C9, Requirement 3). `w` and
- * `wUnknown` come from `buildUsageReport`; `wPerTask` and `pctOfBaseline` are null
- * when they cannot be computed (no usage, no tasks, no or zero baseline). The
- * frontend keeps a hand copy in src/dashboard_frontend/src/modules/shell/types.ts.
- */
-export interface UsageSpecRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closeDate: string | null;
-  w: number | null;
-  wUnknown: number;
-  tasks: number;
-  wPerTask: number | null;
-  baseline: number | null;
-  pctOfBaseline: number | null;
+/** The Usage page's one route payload (design.md C6/C9, Data Models). */
+export interface UsageView {
+  window: { utilization: number; resetsAt: string } | null;
+  /** Percentage points over the last 24 h; null with no anchor line. */
+  burn: number | null;
+  runs: UsageRunLine[];
 }
 
 // --- Controller waits (controller-design.md §7; T4) ---------------------------
@@ -196,7 +193,7 @@ export interface ControllerRun {
 }
 
 export type ShellMessage =
-  | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
+  | { type: 'shell-specs'; data: { blocks: SpecBlock[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }

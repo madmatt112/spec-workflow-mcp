@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './helpers/worktree-harness';
 
 const DASHBOARD_API_BASE_URL = 'http://127.0.0.1:5084';
@@ -43,6 +45,24 @@ test.describe.serial('No-shared worktree dashboard separation', () => {
     });
 
     await harness.setup();
+
+    // Each worktree's decomposition names its own spec (D30), so its line
+    // renders on the Specs page before any project toggle is exercised.
+    const wtA = harness.getWorktree('wt-a');
+    const wtB = harness.getWorktree('wt-b');
+    await mkdir(join(wtA.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(wtA.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-a`\n',
+      'utf-8'
+    );
+    await mkdir(join(wtB.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(wtB.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-b`\n',
+      'utf-8'
+    );
+
     await harness.startMcpServers();
     registeredProjects = await harness.waitForProjects(2, 90000);
   });
@@ -74,16 +94,16 @@ test.describe.serial('No-shared worktree dashboard separation', () => {
     await page.goto('/#/specs');
 
     // With both toggles on, each worktree's seeded spec shows under its project.
-    const specRowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
-    const specRowB = page.getByTestId(`spec-row-${projectB.projectId}-spec-b`);
-    await expect(specRowA).toBeVisible({ timeout: 15000 });
-    await expect(specRowB).toBeVisible();
+    const specLineA = page.getByTestId(`spec-line-${projectA.projectId}-spec-a`);
+    const specLineB = page.getByTestId(`spec-line-${projectB.projectId}-spec-b`);
+    await expect(specLineA).toBeVisible({ timeout: 15000 });
+    await expect(specLineB).toBeVisible();
 
-    // Toggling project B off hides its rows and keeps project A's. The
+    // Toggling project B off hides its line and keeps project A's. The
     // toggle lives in the gear panel, so it opens first.
     await page.getByTestId('gear-toggle').click();
     await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
-    await expect(specRowB).toHaveCount(0);
-    await expect(specRowA).toBeVisible();
+    await expect(specLineB).toHaveCount(0);
+    await expect(specLineA).toBeVisible();
   });
 });

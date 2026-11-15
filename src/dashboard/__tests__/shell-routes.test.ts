@@ -93,23 +93,6 @@ const realFetch: typeof fetch = globalThis.fetch;
 //   overview") — "once" is the literal value under test, not a count this
 //   test derives from the implementation.
 //
-// Criterion "the detail route gives 200 with no file content for a real
-// spec, 404 for an encoded `..` spec name and 404 for an unknown project"
-// (task 7 _Prompt; Requirement 5 AC 4) — three separate tests:
-//   Pre-condition (each): the same fixture; server started.
-//   Test (real spec): `GET /api/shell/projects/:alphaId/specs/spec-a`.
-//   Test (encoded ..): `GET /api/shell/projects/:alphaId/specs/%2e%2e` (a
-//   percent-encoded `..`, which the URL layer does not dot-segment-collapse,
-//   unlike a literal `..`).
-//   Test (unknown project): `GET /api/shell/projects/does-not-exist/specs/spec-a`.
-//   Observable result: real spec gives 200 with exactly the SpecDetail keys
-//   (`order`, `dependsOn`, `runs`, `phases`, `deferrals`, `files`) and no
-//   `files` entry holding a `content` key; the other two give 404 with
-//   `{ error: 'Spec not found' }` and `{ error: 'Project not found' }`.
-//   Expected-value source: the task 7 _Prompt sentence giving the literal
-//   404 bodies, and the `SpecDetail` interface (task 1, src/dashboard/shell
-//   /types.ts) naming exactly those six keys with no content field.
-//
 // Contract addition for task 10 (design.md C7; task 10 _Prompt; Requirement
 // 6 AC 9). Reached through the same real server/ws fixture as the rest of
 // this file; the record is seeded directly on disk with `writeJsonAtomic`
@@ -191,6 +174,11 @@ describe('shell hub wiring and routes (task 7)', () => {
     await fsp.mkdir(stateHomeDir, { recursive: true });
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = stateHomeDir;
+    // Isolates controllerHome() (rate-limit.json, usage-log.jsonl, runs/) from
+    // whatever another test in this worker's shared VITEST_WORKER SDD_HOME has
+    // left behind (e.g. the real run record the launch test below writes), so
+    // the task 7 usage-route test's "empty home" is actually empty.
+    process.env.SDD_HOME = join(tempDir, '.sdd-home');
 
     // Project alpha: HANDOFF routes to spec-a; ledger starts with only a
     // run.start row (no open phase yet).
@@ -376,99 +364,32 @@ describe('shell hub wiring and routes (task 7)', () => {
     expect(countFor(dualViewMessages)).toBe(1);
   });
 
-  it('GET spec detail returns 200 with no file content for a real spec', async () => {
-    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/projects/${alphaId}/specs/spec-a`);
-    expect(res.status).toBe(200);
-    const body: any = await res.json();
-
-    expect(Object.keys(body).sort()).toEqual(
-      ['deferrals', 'dependsOn', 'files', 'order', 'phases', 'runs'].sort()
-    );
-    for (const file of body.files) {
-      expect(Object.prototype.hasOwnProperty.call(file, 'content')).toBe(false);
-    }
-  });
-
-  it('GET spec detail returns 404 for an encoded traversal spec name', async () => {
-    // %2e%2e%2fsecret is a percent-encoded '../secret'. A standalone encoded
-    // '..' segment is dot-segment collapsed by the WHATWG URL layer (undici's
-    // fetch) before the request is sent, so it never reaches the route; keeping
-    // the encoded '/' (%2f) makes it a single path segment that reaches the
-    // route param as '../secret', which the detail builder's name guard rejects.
-    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/projects/${alphaId}/specs/%2e%2e%2fsecret`);
-    expect(res.status).toBe(404);
-    const body: any = await res.json();
-    expect(body).toEqual({ error: 'Spec not found' });
-  });
-
-  it('GET spec detail returns 404 for an unknown project', async () => {
-    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/projects/does-not-exist/specs/spec-a`);
-    expect(res.status).toBe(404);
-    const body: any = await res.json();
-    expect(body).toEqual({ error: 'Project not found' });
-  });
-
-  // Contract for task 12 (design.md C10; Requirement 3 AC1, AC10).
+  // Contract for dashboard-plain-pages task 7 (design.md C7 "GET
+  // /api/shell/usage ... from buildUsageView(this.projectManager
+  // .getAllProjects())"; task 7 _Prompt Success "the route on an empty home
+  // returns window: null, burn: null, runs: []").
   //
-  // Criterion "the route returns 200 with the rows of two projects in the
-  // stated order" (task 12 _Prompt Success clause; design C10 post-condition
-  // "sorted by projectName, then by closeDate newest first with null last"):
-  //   Pre-condition: the fixture's three closed specs — alpha's
-  //   spec-alpha-recent (closeout/closed 2026-03-15), alpha's spec-alpha-none
-  //   (closed via the retro plan, no closeout row, no ledger — a null close
-  //   date) and beta's spec-beta-mid (closeout/closed 2026-02-10); alpha's
-  //   projectName sorts before beta's (both are "<repo> . <workspace>", and
-  //   "alpha-project" < "beta-project"); spec-a (alpha, open) and spec-b
-  //   (beta, never created) are not closed and carry no row.
-  //   Test: `GET /api/shell/usage/closed-specs`.
-  //   Observable result: status 200; `body.rows` has exactly three entries, in
-  //   the order spec-alpha-recent (closeDate '2026-03-15'), spec-alpha-none
-  //   (closeDate null), spec-beta-mid (closeDate '2026-02-10') — alpha's rows
-  //   first (projectName), newest close date first within alpha with the null
-  //   row last, then beta's row.
-  //   Expected-value source: the literal dates and spec names written into
-  //   each project's HANDOFF phase log and retro plan in `beforeEach`, folded
-  //   by the route's stated sort (design C10).
-  it('returns the closed-spec rows of two projects sorted by project then close date, null last', async () => {
-    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/usage/closed-specs`);
+  // Criterion "the route on an empty home returns window: null, burn: null,
+  //   runs: []":
+  //   Pre-condition: this `beforeEach`'s two registered projects (alpha,
+  //   beta), with no `rate-limit.json`, no `usage-log.jsonl` and no run
+  //   record ever written under this test's own `SDD_HOME` (set below, so
+  //   this test's reads of `buildUsageView`'s collaborators — `readRateLimit`,
+  //   `readUsageLog` and `listRunsSync`, all keyed off `controllerHome()` —
+  //   never see state left by another test in this file, such as the launch
+  //   test's real run record).
+  //   Test: `GET /api/shell/usage`.
+  //   Observable result: status 200, body exactly `{ window: null, burn:
+  //   null, runs: [] }`.
+  //   Expected-value source: the task 7 _Prompt's literal Success sentence,
+  //   which is design C6's stated behaviour of `buildUsageView` with no
+  //   rate-limit file, no log line and no run record (C6 steps 1-3; C1's
+  //   `readRateLimit`/`readUsageLog`/`computeBurn` null/`[]` defaults).
+  it('GET /api/shell/usage on an empty home returns no window, no burn and no runs', async () => {
+    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/usage`);
     expect(res.status).toBe(200);
     const body: any = await res.json();
-
-    expect(body.rows.map((r: any) => r.spec)).toEqual([
-      'spec-alpha-recent',
-      'spec-alpha-none',
-      'spec-beta-mid',
-    ]);
-    expect(body.rows.map((r: any) => r.closeDate)).toEqual([
-      '2026-03-15',
-      null,
-      '2026-02-10',
-    ]);
-    expect(body.rows.every((r: any) => r.projectId === alphaId || r.projectId === betaId)).toBe(true);
-  });
-
-  // Criterion "a project whose agent-rules.md path is a directory still
-  // yields rows with baseline: null" (task 12 _Prompt Success clause):
-  //   Pre-condition: alpha's `.spec-workflow/agent-rules.md` is a directory,
-  //   not a file (`beforeEach`), and alpha has a closed spec
-  //   (spec-alpha-recent).
-  //   Test: `GET /api/shell/usage/closed-specs`.
-  //   Observable result: status 200 (not an error response), and the row for
-  //   spec-alpha-recent has `baseline: null`.
-  //   Expected-value source: `readAgentRules`'s directory-read catch
-  //   (`src/dashboard/harness/run-setup.ts:49-55`, EISDIR giving `undefined`)
-  //   gives no `baseline-w-per-task` key, which `buildUsageRows`
-  //   (`src/dashboard/shell/usage-rows.ts:41`) reads as `baseline: null`; the
-  //   route must reach this through the full request without an error status
-  //   (NFR Reliability, task 12 Restrictions).
-  it('still returns 200 with baseline null for a project whose agent-rules.md path is a directory', async () => {
-    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/usage/closed-specs`);
-    expect(res.status).toBe(200);
-    const body: any = await res.json();
-
-    const row = body.rows.find((r: any) => r.spec === 'spec-alpha-recent');
-    expect(row).toBeDefined();
-    expect(row.baseline).toBeNull();
+    expect(body).toEqual({ window: null, burn: null, runs: [] });
   });
 
   // Contract for task 9 (design C4, C7 hub bullet "`src/dashboard/multi-server

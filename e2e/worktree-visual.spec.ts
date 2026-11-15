@@ -50,9 +50,9 @@ test.describe.serial('Dashboard visual suite', () => {
   });
 
   /**
-   * Navigates `page` to one of the four views, opening the first row's panel
-   * on Specs and Deferrals, the same way `../worktree-shell.spec.ts`'s own
-   * tests do.
+   * Navigates `page` to one of the four views: Specs waits for its first
+   * block, no panel opens (design C8, D17); Deferrals waits for its first
+   * row and opens no panel either (design C10 Restrictions).
    */
   async function openView(page: Page, view: View): Promise<void> {
     switch (view) {
@@ -62,17 +62,15 @@ test.describe.serial('Dashboard visual suite', () => {
         break;
       case 'specs':
         await page.goto('/#/specs');
-        await page.locator('[data-testid^="spec-row-"]').first().click({ timeout: 15000 });
-        await expect(page.getByTestId('spec-panel')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid^="specs-block-"]').first()).toBeVisible({ timeout: 15000 });
         break;
       case 'usage':
         await page.goto('/#/usage');
-        await expect(page.getByTestId('usage-closed-specs')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByTestId('usage-window')).toBeVisible({ timeout: 15000 });
         break;
       case 'deferrals':
         await page.goto('/#/deferrals');
-        await page.locator('[data-testid^="deferral-row-"]').first().click({ timeout: 15000 });
-        await expect(page.getByTestId('deferral-panel')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid^="deferral-row-"]').first()).toBeVisible({ timeout: 15000 });
         break;
     }
   }
@@ -310,7 +308,7 @@ test.describe.serial('Dashboard visual suite', () => {
     fontSize: string;
   };
 
-  type KindCapture = { kind: 'row' | 'pill' | 'button'; key: string; style: StyleSnapshot };
+  type KindCapture = { kind: 'pill' | 'button'; key: string; style: StyleSnapshot };
 
   /**
    * Reads every row, pill and button kind instance across the whole shell —
@@ -348,9 +346,6 @@ test.describe.serial('Dashboard visual suite', () => {
           key: `variant=${el.getAttribute('data-variant')}|size=${el.getAttribute('data-size')}`,
           style: snapshot(el),
         });
-      }
-      for (const el of Array.from(document.querySelectorAll('[data-ui="row"][data-selected="false"]'))) {
-        out.push({ kind: 'row', key: 'unselected', style: snapshot(el) });
       }
       return out;
     });
@@ -412,7 +407,7 @@ test.describe.serial('Dashboard visual suite', () => {
     }
     await context.close();
 
-    for (const kind of ['row', 'pill', 'button'] as const) {
+    for (const kind of ['pill', 'button'] as const) {
       const pair = findCrossViewPair(captures, kind);
       expect(pair, `no cross-view pair found for kind "${kind}"`).not.toBeNull();
       const [a, b] = pair!;

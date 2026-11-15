@@ -3,48 +3,48 @@
 // Wire shapes for the shell pages. The frontend compiles apart from the server
 // (the root tsconfig excludes src/dashboard_frontend/**), so it cannot import
 // the server's types. These are copied by hand from src/dashboard/shell/types.ts.
-// Keep them in step. PhaseRow reuses the existing harness hand copy.
-import type { PhaseRow } from '../harness/types';
+// Keep them in step.
 
 // --- Shell wire shapes copied from src/dashboard/shell/types.ts ---
 
-export interface SpecListRow {
+/** One Specs-block line's harness state (design.md C3, Data Models). */
+export type SpecWord = 'live' | 'closed' | 'deferred' | 'next' | 'stopped' | 'not started';
+
+/** One decomposition heading's line on the Specs block (design.md C3, Data Models). */
+export interface SpecLine {
+  number: string;
+  spec: string;
+  word: SpecWord;
+  fact: string | null;
+}
+
+/** One store's Specs block: every decomposition heading's line (design.md C3, Data Models). */
+export interface SpecBlock {
+  projectId: string;
+  projectName: string;
+  lines: SpecLine[];
+}
+
+// Hand copy of src/dashboard/shell/types.ts UsageRunLine (task 7); keep in step.
+export interface UsageRunLine {
+  runId: string;
   projectId: string;
   projectName: string;
   spec: string;
-  state: 'live' | 'in-progress' | 'abandoned' | 'closed' | 'deferred' | 'not-started';
   phase: string | null;
-  versions: { requirements: string | null; design: string | null; tasks: string | null };
-  tasks: { done: number; total: number };
-  prs: number[];
-  deferrals: number;
-  retro: string | null;
-  updated: string | null;
+  tokens: number;
+  /** `total − completed` of the spec's `tasks.md`; null outside the implementation phase. */
+  remaining: number | null;
+  /** `null` reads "not known yet" (design D20). */
+  fit: 'fits' | 'does-not-fit' | null;
 }
 
-export interface SpecDetail {
-  order: number | null;
-  dependsOn: string | null;
-  runs: { runId: string; start: string; end: string | null; status: string | null; tokens: number }[];
-  phases: PhaseRow[];
-  deferrals: { id: string; title: string; status: string }[];
-  files: { name: string; path: string; size: number; modified: string }[];
-}
-
-// Hand copy of src/dashboard/shell/types.ts UsageSpecRow (task 11); keep in step.
-// `w`/`wUnknown` come from buildUsageReport; `wPerTask` and `pctOfBaseline` are
-// null when they cannot be computed (no usage, no tasks, no or zero baseline).
-export interface UsageSpecRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closeDate: string | null;
-  w: number | null;
-  wUnknown: number;
-  tasks: number;
-  wPerTask: number | null;
-  baseline: number | null;
-  pctOfBaseline: number | null;
+// Hand copy of src/dashboard/shell/types.ts UsageView (task 7); keep in step.
+export interface UsageView {
+  window: { utilization: number; resetsAt: string } | null;
+  /** Percentage points over the last 24 h; null with no anchor line. */
+  burn: number | null;
+  runs: UsageRunLine[];
 }
 
 // --- Controller waits (controller-design.md §7; T4) ---------------------------
@@ -227,7 +227,7 @@ export interface ControllerDeploy {
 }
 
 export type ShellMessage =
-  | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
+  | { type: 'shell-specs'; data: { blocks: SpecBlock[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }

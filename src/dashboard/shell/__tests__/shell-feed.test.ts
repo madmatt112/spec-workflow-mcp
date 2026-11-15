@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -52,13 +52,15 @@ import type { ShellMessage } from '../types.js';
 //
 // Criterion "omitted project on a throwing spec-row read" (task 6 _Prompt:
 //   "calls the spec-row builder task 4 exports for every project (a project
-//   whose rows throw is left out and logged once)"):
+//   whose rows throw is left out and logged once)"; task 5 _Prompt: "a group
+//   whose builder throws is left out while the other group's block is
+//   sent"):
 //   Pre-condition: two projects, one with a normal spec directory and one
 //   whose `projectPath` is not a string (so the task-4 builder throws
 //   immediately when it joins the path).
 //   Test: feed.start(), then read the shell-specs message of
 //   feed.snapshot().
-//   Observable result: its rows include the good project's id and exclude
+//   Observable result: its blocks include the good project's id and exclude
 //   the bad project's id; console.error was called at least once.
 //   Expected-value source: the fixtures' own project ids, and the literal
 //   "logged" requirement of the _Prompt sentence.
@@ -78,16 +80,17 @@ import type { ShellMessage } from '../types.js';
 // Criterion "one store read once per flush" (task 9 _Prompt: "In flush,
 //   buildSpecRows runs once per group with the representative ... Spec
 //   rows carry the representative's projectId and projectName";
-//   Requirements 2.5, 2.7):
+//   Requirements 2.5, 2.7; task 5 _Prompt: "two projects on one store give
+//   one block with the representative's id"):
 //   Pre-condition: two projects whose `workflowRootPath` is the same
 //   shared string (so they share one store) but whose own spec
 //   directories differ, named so the alphabetically-first project's name
 //   is the representative.
 //   Test: feed.start(), then read the shell-specs message of
 //   feed.snapshot().
-//   Observable result: the rows carry only the representative project's
-//   id and only its own spec, not a second set of rows for the other
-//   project on the same store.
+//   Observable result: there is exactly one block, carrying only the
+//   representative project's id and a line for its own spec, not a second
+//   block for the other project on the same store.
 //   Expected-value source: the literal "once per group with the
 //   representative" of the C8/_Prompt sentence.
 //
@@ -353,7 +356,7 @@ describe('ShellFeed', () => {
     expect(sends.length).toBe(countAtClose);
   });
 
-  it('reads one shared store once: two projects on it send one set of spec rows carrying the representative\'s id', async () => {
+  it('reads one shared store once: two projects on it send one block carrying the representative\'s id', async () => {
     const base = tmpBase();
     bases.push(base);
     const shared = '/tmp/shared-store-for-test';
@@ -362,19 +365,24 @@ describe('ShellFeed', () => {
     (alpha as unknown as { workflowRootPath: string }).workflowRootPath = shared;
     (zeta as unknown as { workflowRootPath: string }).workflowRootPath = shared;
 
+    const decompDir = join(alpha.projectPath, '.spec-workflow', 'spec-decomposition');
+    mkdirSync(decompDir, { recursive: true });
+    writeFileSync(join(decompDir, 'decomposition.md'), '### 1. `spec-a`\n', 'utf-8');
+
     const feed = new ShellFeed(stubProjects([zeta, alpha]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
     await feed.start();
 
     const specsMsg = ofType(feed.snapshot(), 'shell-specs')[0];
     expect(specsMsg).toBeDefined();
-    const rows = specsMsg.data.rows;
-    expect(rows.every((r) => r.projectId === alpha.projectId)).toBe(true);
-    expect(rows.some((r) => r.spec === 'spec-z')).toBe(false);
-    expect(rows.some((r) => r.spec === 'spec-a')).toBe(true);
+    const blocks = specsMsg.data.blocks;
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].projectId).toBe(alpha.projectId);
+    expect(blocks[0].lines.some((l) => l.spec === 'spec-z')).toBe(false);
+    expect(blocks[0].lines.some((l) => l.spec === 'spec-a')).toBe(true);
   });
 
-  it('omits a project whose spec rows throw from shell-specs while the other project keeps its rows, and logs once', async () => {
+  it('omits a project whose block throws from shell-specs while the other project\'s block is sent, and logs once', async () => {
     const base = tmpBase();
     bases.push(base);
     const { project: goodProject } = makeProject(base, 'spec-a', 'Good Project');
@@ -394,9 +402,9 @@ describe('ShellFeed', () => {
       await feed.start();
       const specsMsg = ofType(feed.snapshot(), 'shell-specs')[0];
       expect(specsMsg).toBeDefined();
-      const rows = specsMsg.data.rows;
-      expect(rows.some((r) => r.projectId === goodProject.projectId)).toBe(true);
-      expect(rows.some((r) => r.projectId === badProject.projectId)).toBe(false);
+      const blocks = specsMsg.data.blocks;
+      expect(blocks.some((b) => b.projectId === goodProject.projectId)).toBe(true);
+      expect(blocks.some((b) => b.projectId === badProject.projectId)).toBe(false);
       expect(errorSpy).toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();

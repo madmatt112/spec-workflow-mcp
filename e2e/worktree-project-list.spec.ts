@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 import { WorktreeHarness, resetSpecWorkflowHome, type RegisteredProject } from './helpers/worktree-harness';
 import { DeferralStorage } from '../src/core/deferral-storage.js';
 
@@ -16,7 +18,7 @@ import { DeferralStorage } from '../src/core/deferral-storage.js';
  *
  * - R2 AC1, AC5 (the Specs page lists a store's spec once). Pre-condition:
  *   two listed projects sharing one store with one spec in it. Test: read
- *   the `spec-row-` count on `/#/specs` after both load. Observable result:
+ *   the `spec-line-` count on `/#/specs` after both load. Observable result:
  *   `1`, not `2`. Expected-value source: requirements.md:40,44, "count each
  *   pair of spec store and spec directory once, however many listed
  *   projects share that store".
@@ -54,8 +56,8 @@ import { DeferralStorage } from '../src/core/deferral-storage.js';
 
 const DASHBOARD_API_BASE_URL = 'http://127.0.0.1:5084';
 
-async function specRowCount(page: Page): Promise<number> {
-  return page.locator('[data-testid^="spec-row-"]').count();
+async function specLineCount(page: Page): Promise<number> {
+  return page.locator('[data-testid^="spec-line-"]').count();
 }
 
 async function deferralRowCount(page: Page): Promise<number> {
@@ -100,6 +102,16 @@ test.describe.serial('Shared-store Specs and Deferrals counts', () => {
     });
 
     await harness.setup();
+
+    // The shared store's decomposition names its one spec (D30), so the
+    // Specs page's one block carries a line, not "No decomposition".
+    await mkdir(join(harness.getRepoPath(), '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(harness.getRepoPath(), '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-shared`\n',
+      'utf-8'
+    );
+
     await harness.startMcpServers();
     await harness.waitForProjects(2, 90000);
 
@@ -133,7 +145,7 @@ test.describe.serial('Shared-store Specs and Deferrals counts', () => {
     // R2 AC1, AC2, AC5, AC6, AC8: one store, one spec, one deferred record,
     // two listed projects on it — each page lists the store once, not twice.
     await page.goto('/#/specs');
-    await expect.poll(() => specRowCount(page), { timeout: 15000 }).toBe(1);
+    await expect.poll(() => specLineCount(page), { timeout: 15000 }).toBe(1);
 
     await page.goto('/#/deferrals');
     await expect.poll(() => deferralRowCount(page), { timeout: 15000 }).toBe(1);
@@ -146,7 +158,7 @@ test.describe.serial('Shared-store Specs and Deferrals counts', () => {
     await page.getByTestId(`project-toggle-${projectA.projectId}`).click();
 
     await page.goto('/#/specs');
-    await expect.poll(() => specRowCount(page), { timeout: 15000 }).toBe(1);
+    await expect.poll(() => specLineCount(page), { timeout: 15000 }).toBe(1);
 
     await page.goto('/#/deferrals');
     await expect.poll(() => deferralRowCount(page), { timeout: 15000 }).toBe(1);
@@ -157,7 +169,7 @@ test.describe.serial('Shared-store Specs and Deferrals counts', () => {
     await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
 
     await page.goto('/#/specs');
-    await expect.poll(() => specRowCount(page), { timeout: 15000 }).toBe(0);
+    await expect.poll(() => specLineCount(page), { timeout: 15000 }).toBe(0);
 
     await page.goto('/#/deferrals');
     await expect.poll(() => deferralRowCount(page), { timeout: 15000 }).toBe(0);

@@ -394,22 +394,22 @@ test.describe('Shared worktree specs', () => {
 
   // Scenario 1: two worktrees register as distinct projects that both serve the
   // one shared spec. The legacy per-project specs-list route this used has been
-  // removed; the shell spec-detail route is the kept replacement and answers 200
-  // only when the project resolves the shared spec.
+  // removed; the harness setup route is the kept replacement and names the
+  // shared spec only when the project resolves the shared workflow root.
   test('registers two distinct projects that serve the same shared spec', async () => {
     const projectIds = registeredProjects.map((project) => project.projectId);
     expect(new Set(projectIds).size).toBe(2);
 
     // The only `.spec-workflow` in this fixture is in the main checkout, so a
-    // project that resolved its workflow root to its own worktree would 404 for
-    // the shared spec. Both must serve it.
+    // project that resolved its workflow root to its own worktree would not
+    // name the shared spec. Both must name it.
     for (const project of registeredProjects) {
       const response = await fetch(
-        `${DASHBOARD_API_BASE_URL}/api/shell/projects/${project.projectId}/specs/${encodeURIComponent(SHARED_SPEC_NAME)}`
+        `${DASHBOARD_API_BASE_URL}/api/projects/${project.projectId}/harness/setup`
       );
-      expect(response.ok, `shared spec detail for ${project.projectPath}`).toBe(true);
-      const detail = await response.json() as { phases: unknown[] };
-      expect(Array.isArray(detail.phases)).toBe(true);
+      expect(response.ok, `harness setup for ${project.projectPath}`).toBe(true);
+      const view = await response.json() as { specs: { name: string }[] };
+      expect(view.specs.map((s) => s.name)).toContain(SHARED_SPEC_NAME);
     }
   });
 

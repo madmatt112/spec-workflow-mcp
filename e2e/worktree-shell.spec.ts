@@ -5,7 +5,8 @@ import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './hel
 import { DeferralStorage } from '../src/core/deferral-storage.js';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
 import { secretPath } from '../src/controller/access.js';
-import type { PrRead, RunRecord } from '../src/controller/state.js';
+import { writeRateLimit, type PrRead, type RunRecord } from '../src/controller/state.js';
+import { usageLogPath } from '../src/controller/usage-log.js';
 
 /**
  * Browser checks of the four-route dashboard shell (design Testing Strategy
@@ -123,6 +124,7 @@ test.describe.serial('Dashboard shell end to end', () => {
     // when the first client connects. The gate test then appends the phase rows
     // and the append — not a reload — is what surfaces the wait.
     const wtA = harness.getWorktree('wt-a');
+    const wtB = harness.getWorktree('wt-b');
     const specADir = join(wtA.path, '.spec-workflow', 'specs', 'spec-a');
     ledgerPathA = join(specADir, 'harness-events.jsonl');
     await mkdir(specADir, { recursive: true });
@@ -134,6 +136,23 @@ test.describe.serial('Dashboard shell end to end', () => {
     await writeFile(
       ledgerPathA,
       JSON.stringify({ ts: '2026-10-06T10:00:00.000Z', type: 'run.start', run: 'run-1', spec: 'spec-a' }) + '\n',
+      'utf-8'
+    );
+
+    // Each decomposition names its own project's spec (D30), plus, for
+    // project A, a second heading tagged `(deferred)` whose entry text names
+    // a deferral id with no matching record, so the Specs page falls back to
+    // the entry-text id (design D5).
+    await mkdir(join(wtA.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(wtA.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-a`\n\n### 2. `deferred-demo` (deferred)\n\nDeferral record d-0000abcd covers this spec.\n',
+      'utf-8'
+    );
+    await mkdir(join(wtB.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(wtB.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-b`\n',
       'utf-8'
     );
 
@@ -225,88 +244,223 @@ test.describe.serial('Dashboard shell end to end', () => {
     }
   });
 
-  test('toggling a project off hides its Specs rows and the state survives a reload', async ({ page }) => {
+  test('toggling a project off hides its Specs line and the state survives a reload', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/#/specs');
 
-    const rowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
-    const rowB = page.getByTestId(`spec-row-${projectB.projectId}-spec-b`);
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    await expect(rowB).toBeVisible();
+    const lineA = page.getByTestId(`spec-line-${projectA.projectId}-spec-a`);
+    const lineB = page.getByTestId(`spec-line-${projectB.projectId}-spec-b`);
+    await expect(lineA).toBeVisible({ timeout: 15000 });
+    await expect(lineB).toBeVisible();
 
     // The toggle lives in the gear panel now (task 16), so it opens first.
     await page.getByTestId('gear-toggle').click();
     await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
-    await expect(rowB).toHaveCount(0);
-    await expect(rowA).toBeVisible();
+    await expect(lineB).toHaveCount(0);
+    await expect(lineA).toBeVisible();
 
     await page.reload();
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    await expect(rowB).toHaveCount(0);
+    await expect(lineA).toBeVisible({ timeout: 15000 });
+    await expect(lineB).toHaveCount(0);
   });
 
-  test('at 1000 px the panel stacks below the list', async ({ page }) => {
-    await page.setViewportSize({ width: 1000, height: 900 });
+  test('a (deferred) decomposition heading with no matching record shows the entry\'s deferral id', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/#/specs');
 
-    const rowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    await rowA.click();
-    await expect(page.getByTestId('spec-panel')).toBeVisible({ timeout: 15000 });
-
-    const listBox = (await page.getByTestId('page-list').boundingBox())!;
-    const panelBox = (await page.getByTestId('page-panel').boundingBox())!;
-    expect(panelBox.y).toBeGreaterThanOrEqual(listBox.y + listBox.height - 2);
+    const line = page.getByTestId(`spec-line-${projectA.projectId}-deferred-demo`);
+    await expect(line).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId(`spec-word-${projectA.projectId}-deferred-demo`)).toContainText('deferred');
+    await expect(line).toContainText('d-0000abcd');
   });
 
-  test('(R2) the Deferrals page owner chip counts, filters by AND and shows the owner', async ({ page }) => {
+  test('(R4) the Deferrals page lists the queue oldest first and resolves records with Resolve', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
+    await login(page);
+
+    const storageA = new DeferralStorage(projectA.projectPath);
+    const records = await storageA.list();
+    const byTitle = (title: string) => records.find((r) => r.title === title)!;
+    const matthewRecord = byTitle('Owned by matthew');
+    const harnessRecord = byTitle('Owned by harness');
+    const noneRecord = byTitle('No owner recorded');
+
+    // The page's own sort (design C10): oldest `createdAt` first, ties by id.
+    const expectedOrder = [...records]
+      .filter((r) => r.status === 'deferred')
+      .sort((a, b) => {
+        if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+
     await page.goto('/#/deferrals');
 
     // Project A's three deferrals; project B has none.
     const rows = page.locator('[data-testid^="deferral-row-"]');
     await expect(rows).toHaveCount(3, { timeout: 15000 });
 
-    // The matthew owner chip counts exactly the one matthew-owned record.
-    await expect(page.getByTestId('chip-matthew')).toContainText('1');
+    // Oldest first, columns in order (age, id, project, spec, tag, owner,
+    // summary); `matthew` shows in its owner cell.
+    for (let i = 0; i < expectedOrder.length; i++) {
+      await expect(rows.nth(i)).toContainText(expectedOrder[i].title);
+    }
+    await expect(rows.nth(0)).toContainText(projectA.projectName);
+    await expect(rows.nth(0)).toContainText('spec-a');
+    await expect(page.getByTestId(`deferral-row-${projectA.projectId}-${matthewRecord.id}`)).toContainText('matthew');
 
-    // Selecting it leaves only the matthew-owned row.
-    await page.getByTestId('chip-matthew').click();
-    await expect(rows).toHaveCount(1);
+    // No chips, search, pager or detail panel (Requirement 6 AC4).
+    await expect(page.locator('[data-testid^="chip-"]')).toHaveCount(0);
+    await expect(page.getByTestId('deferral-panel')).toHaveCount(0);
 
-    // The panel shows the Owner.
-    await rows.first().click();
-    const panel = page.getByTestId('deferral-panel');
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText('Owner');
-    await expect(panel).toContainText('matthew');
+    // Resolve opens a box; Cancel closes it and writes nothing.
+    await page.getByTestId(`deferral-resolve-${matthewRecord.id}`).click();
+    const matthewConfirm = page.getByTestId(`deferral-resolve-confirm-${matthewRecord.id}`);
+    const matthewResolution = page.getByTestId(`deferral-resolution-${matthewRecord.id}`);
+    await expect(matthewConfirm).toBeDisabled();
+    await matthewResolution.fill('not resolving this one');
+    await expect(matthewConfirm).toBeEnabled();
+    await page.getByTestId(`deferral-resolve-cancel-${matthewRecord.id}`).click();
+    await expect(matthewResolution).toHaveCount(0);
+    expect((await storageA.get(matthewRecord.id))?.status).toBe('deferred');
 
-    // Status chips AND with owner chips: the matthew record is `deferred`, so
-    // also selecting `resolved` (an OR would keep it) leaves no row.
-    await page.getByTestId('chip-resolved').click();
-    await expect(rows).toHaveCount(0);
+    // The confirm is disabled while the request is in flight, so one press sends one request.
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
+    let requestCount = 0;
+    await page.route(`**/api/projects/${projectA.projectId}/deferrals/${harnessRecord.id}/resolve`, async (route) => {
+      requestCount += 1;
+      await gate;
+      await route.continue();
+    });
+    await page.getByTestId(`deferral-resolve-${harnessRecord.id}`).click();
+    await page.getByTestId(`deferral-resolution-${harnessRecord.id}`).fill('resolving now');
+    const harnessConfirm = page.getByTestId(`deferral-resolve-confirm-${harnessRecord.id}`);
+    await harnessConfirm.click();
+    await expect(harnessConfirm).toBeDisabled();
+    releaseGate();
+
+    // The row leaves after the `deferrals-update` push (the settling signal),
+    // then the file is asserted (Requirement 7 AC7).
+    await expect(rows).toHaveCount(2, { timeout: 15000 });
+    expect(requestCount).toBe(1);
+    const harnessAfter = await storageA.get(harnessRecord.id);
+    expect(harnessAfter?.status).toBe('resolved');
+    expect(harnessAfter?.resolution).toBe('resolving now');
+
+    // A routed error shows its reason, keeps the typed text and the box open.
+    await page.route(`**/api/projects/${projectA.projectId}/deferrals/${noneRecord.id}/resolve`, (route) =>
+      route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'Deferral already resolved' }) }),
+    );
+    await page.getByTestId(`deferral-resolve-${noneRecord.id}`).click();
+    const noneResolution = page.getByTestId(`deferral-resolution-${noneRecord.id}`);
+    await noneResolution.fill('typed before the error');
+    await page.getByTestId(`deferral-resolve-confirm-${noneRecord.id}`).click();
+    await expect(page.getByTestId(`deferral-resolve-error-${noneRecord.id}`)).toContainText('Deferral already resolved');
+    await expect(noneResolution).toHaveValue('typed before the error');
+    expect((await storageA.get(noneRecord.id))?.status).toBe('deferred');
+
+    // With every project toggled off the page shows "Queue empty"; the
+    // toggles go back on before the case ends.
+    await page.getByTestId('gear-toggle').click();
+    await page.getByTestId(`project-toggle-${projectA.projectId}`).click();
+    await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
+    await expect(page.getByTestId('deferrals-empty')).toContainText('Queue empty');
+    await page.getByTestId(`project-toggle-${projectA.projectId}`).click();
+    await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
+    await expect(rows).toHaveCount(2);
   });
 
-  test('(R3) the Usage page shows both projects, no placeholder, two trend lines and one baseline', async ({ page }) => {
+  test('(R3) the Usage page shows the window, the burn and each live run\'s fit', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/#/usage');
 
-    await expect(page.getByTestId('usage-closed-specs')).toBeVisible({ timeout: 15000 });
-    // The placeholder is gone.
-    await expect(page.getByTestId('usage-placeholder')).toHaveCount(0);
+    const now = Date.now();
+    const anchorTs = new Date(now - 25 * 3600 * 1000).toISOString();
+    const newestTs = new Date(now - 60 * 1000).toISOString();
 
-    // Both projects' closed specs show as rows.
-    await expect(page.getByTestId(`usage-row-${projectA.projectId}-closed-alpha`)).toBeVisible();
-    await expect(page.getByTestId(`usage-row-${projectB.projectId}-closed-beta`)).toBeVisible();
+    // A seven-day window at 50% utilisation, reset three days out (design C9,
+    // Requirement 4 AC1: per cent left = 100 − round(utilization × 100) = 50).
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.1, resetsAt: new Date(now + 2 * 3600 * 1000).toISOString() },
+      sevenDay: { utilization: 0.5, resetsAt: new Date(now + 3 * 24 * 3600 * 1000).toISOString() },
+      updated: new Date(now).toISOString(),
+    });
 
-    // One trend line per plotted project, one dashed baseline (project A only).
-    await expect(page.locator('[data-testid^="trend-line-"]')).toHaveCount(2);
-    await expect(page.locator('[data-testid^="trend-baseline-"]')).toHaveCount(1);
+    // Two log lines 25 h and 1 min old (requirement 4 AC4-AC6, design D7/D8):
+    // the anchor (25 h old, at or before the 24 h cutoff) to the newest (1 min
+    // old) step is 0.1 utilisation, a burn of 10.0 points; the newest line
+    // carries runA's id so attributedUse(lines, runA.id) is positive (D8).
+    const runAId = 'e2e-usage-impl-a';
+    const runBId = 'e2e-usage-doc-b';
+    const logLines = [
+      { v: 1, ts: anchorTs, sevenDay: { utilization: 0.4 }, run: null },
+      { v: 1, ts: newestTs, sevenDay: { utilization: 0.5 }, run: runAId },
+    ];
+    await writeFile(usageLogPath(), logLines.map((l) => JSON.stringify(l)).join('\n') + '\n', 'utf-8');
+
+    // spec-a's tasks.md: 5 tasks, 3 done, so remaining = 2. With use = 0.1 and
+    // done = 3 (the three task.done rows below), (use/done) × remaining =
+    // 0.0667, well inside the headroom (1 − 0.5 = 0.5): "fits" (design D8).
+    await writeFile(
+      join(projectA.projectPath, '.spec-workflow', 'specs', 'spec-a', 'tasks.md'),
+      '- [x] 1. first task\n- [x] 2. second task\n- [x] 3. third task\n- [ ] 4. fourth task\n- [ ] 5. fifth task\n',
+      'utf-8',
+    );
+    await appendFile(
+      ledgerPathA,
+      ['1', '2', '3']
+        .map((task) => JSON.stringify({ ts: newestTs, type: 'task.done', run: runAId, spec: 'spec-a', task }))
+        .join('\n') + '\n',
+      'utf-8',
+    );
+
+    // One live run per project (src/dashboard/shell/live-runs.ts:10-18): A is
+    // `waiting` in the implementation phase (gets a fit); B is `waiting` in a
+    // document phase (requirement 5 AC3: fit always "not known yet" there).
+    const runA: RunRecord = {
+      v: 1, id: runAId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'waiting', phase: 'implementation',
+      created: new Date(now).toISOString(), updated: new Date(now).toISOString(),
+      tokens: { input: 100, output: 50, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runB: RunRecord = {
+      v: 1, id: runBId, project: projectB.projectId,
+      codeRoot: projectB.projectPath, specStore: projectB.projectPath,
+      spec: 'spec-b', worktree: projectB.projectPath, branch: 'feat/spec-b',
+      status: 'waiting', phase: 'requirements',
+      created: new Date(now).toISOString(), updated: new Date(now).toISOString(),
+      tokens: { input: 20, output: 10, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDirA = join(sddHome(), 'runs', runA.id);
+    const runDirB = join(sddHome(), 'runs', runB.id);
+    await mkdir(runDirA, { recursive: true });
+    await mkdir(runDirB, { recursive: true });
+    await writeFile(join(runDirA, 'run.json'), JSON.stringify(runA, null, 2) + '\n', 'utf-8');
+    await writeFile(join(runDirB, 'run.json'), JSON.stringify(runB, null, 2) + '\n', 'utf-8');
+
+    try {
+      await page.goto('/#/usage');
+
+      await expect(page.getByTestId('usage-window')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('usage-left')).toContainText('50');
+      await expect(page.getByTestId('usage-burn')).toContainText('10.0');
+
+      await expect(page.getByTestId(`usage-fit-${runAId}`)).toContainText('fits before the reset');
+      await expect(page.getByTestId(`usage-fit-${runBId}`)).toContainText('not known yet');
+
+      // No five-hour window anywhere on the page (requirement 4 AC7).
+      await expect(page.getByText(/five.hour/i)).toHaveCount(0);
+    } finally {
+      await rm(runDirA, { recursive: true, force: true });
+      await rm(runDirB, { recursive: true, force: true });
+    }
   });
 
   test('no page scrolls sideways at widths 1000 and 375', async ({ page }) => {
     const markerFor = (path: string) =>
-      path === '/usage' ? 'usage-closed-specs' : path === '/' ? 'band-needs-you' : 'page-list';
+      path === '/usage' ? 'usage-window' : path === '/' ? 'band-needs-you' : 'page-list';
 
     for (const width of [1000, 375]) {
       await page.setViewportSize({ width, height: 900 });

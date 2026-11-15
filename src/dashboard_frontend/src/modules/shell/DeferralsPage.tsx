@@ -1,49 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
 import { storeGroups } from '../projects/stores';
 import { useShell, DeferralRecord, type DeferralsPayload } from './ShellProvider';
 import type { StoreGroup } from '../projects/stores';
-import { PageLayout } from './PageLayout';
-import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
-import { formatDate } from '../../lib/dateUtils';
-import { Pill, ui, type Tone } from '../ui/ui';
+import { Button, Pill, TextInput } from '../ui/ui';
 
 /**
- * The read-only Deferrals page (design C10 Deferrals, D15; Requirement 7 AC 2).
- * Every enabled project's deferral records in one group per project, with the
- * shell list primitives: status chips, a search box over title/id/origin spec
- * and a pager. Selecting a row shows the whole record in the panel. A
- * `deferrals-update` push replaces a project's records through ShellProvider,
- * so the list and the open panel refresh with no reload.
+ * The Deferrals queue (design C10; Requirement 6, 7). One flat table of
+ * every `deferred` record across every enabled spec store, oldest first,
+ * each with a Resolve button that opens an in-row box posting to the
+ * resolve route task 8 adds. No chips, search, pager or detail panel; a
+ * `deferrals-update` push replaces a project's records through
+ * ShellProvider, so a resolved row leaves with no reload.
  */
-
-const STATUSES = ['deferred', 'resolved', 'superseded'] as const;
-
-const STATUS_LABELS: Record<string, string> = {
-  deferred: 'Deferred', resolved: 'Resolved', superseded: 'Superseded',
-};
-
-const OWNERS = ['matthew', 'harness', 'none'] as const;
-
-const OWNER_LABELS: Record<string, string> = {
-  matthew: 'matthew', harness: 'harness', none: 'no owner',
-};
 
 interface FullDeferral extends DeferralRecord {
   owner?: 'matthew' | 'harness' | null;
   createdAt?: string;
-  updatedAt?: string;
-  resolvedAt?: string | null;
-  originPhase?: string | null;
-  revisitTrigger?: string;
   tags?: string[];
-  resolution?: string | null;
-  resolvedInSpec?: string | null;
-  body?: { context?: string; decision?: string; revisitCriteria?: string };
 }
 
 interface Item {
   store: string;
+  projectId: string;
   projectName: string;
   d: FullDeferral;
 }
@@ -56,249 +35,160 @@ function recordsOf(group: StoreGroup, deferralsByProject: Record<string, Deferra
   return withPayload ? (deferralsByProject[withPayload.projectId]?.deferrals ?? []) as FullDeferral[] : [];
 }
 
-const STATUS_TONE: Record<string, Tone> = {
-  deferred: 'accent',
-  resolved: 'success',
-  superseded: 'neutral',
-};
-
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <Pill tone={STATUS_TONE[status] ?? STATUS_TONE.superseded} className="shrink-0">
-      {status}
-    </Pill>
-  );
-}
-
-function OwnerBadge({ owner, testId }: { owner: string; testId: string }) {
-  return (
-    <span
-      data-testid={testId}
-      className="inline-flex shrink-0 items-center rounded-full bg-[var(--surface-inset)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)]"
-    >
-      {owner}
-    </span>
-  );
-}
-
-function key(store: string, id: string): string {
-  return `${store}::${id}`;
+/** Age under 24 h as whole hours, else whole days (design D22). */
+function ageText(createdAt?: string): string {
+  if (!createdAt) return '';
+  const hours = Math.floor((Date.now() - Date.parse(createdAt)) / (3600 * 1000));
+  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`;
 }
 
 export function DeferralsPage() {
   const { projects, enabled } = useProjects();
   const { deferralsByProject } = useShell();
 
-  const [active, setActive] = useState<string[]>([]);
-  const [activeOwners, setActiveOwners] = useState<string[]>([]);
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(0);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [inFlight, setInFlight] = useState(false);
 
   const groups = useMemo(() => storeGroups(projects, enabled), [projects, enabled]);
   const enabledGroups = useMemo(() => groups.filter((g) => g.enabled), [groups]);
   const enabledKey = enabledGroups.map((g) => g.store).join(',');
 
-  // Status counts across every enabled store's records (not the search / chip).
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { deferred: 0, resolved: 0, superseded: 0 };
-    for (const g of enabledGroups) {
-      for (const d of recordsOf(g, deferralsByProject)) {
-        if (counts[d.status] !== undefined) counts[d.status] += 1;
-      }
-    }
-    return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledKey, deferralsByProject]);
-
-  // Owner counts across every enabled store's records (unowned counts as 'none').
-  const ownerCounts = useMemo(() => {
-    const counts: Record<string, number> = { matthew: 0, harness: 0, none: 0 };
-    for (const g of enabledGroups) {
-      for (const d of recordsOf(g, deferralsByProject)) {
-        const o = d.owner ?? 'none';
-        if (counts[o] !== undefined) counts[o] += 1;
-      }
-    }
-    return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledKey, deferralsByProject]);
-
-  // Flatten the filtered records of every enabled store, in group order.
+  // Every enabled store's open records, oldest first, ties by id (Requirement 6 AC1, AC3).
   const items = useMemo<Item[]>(() => {
-    const q = query.trim().toLowerCase();
     const out: Item[] = [];
     for (const g of enabledGroups) {
       for (const d of recordsOf(g, deferralsByProject)) {
-        if (active.length && !active.includes(d.status)) continue;
-        if (activeOwners.length && !activeOwners.includes(d.owner ?? 'none')) continue;
-        if (q) {
-          const hay = `${d.title ?? ''} ${d.id ?? ''} ${d.originSpec ?? ''}`.toLowerCase();
-          if (!hay.includes(q)) continue;
-        }
-        out.push({ store: g.store, projectName: g.representative.projectName, d });
+        if (d.status !== 'deferred') continue;
+        out.push({ store: g.store, projectId: g.representative.projectId, projectName: g.representative.projectName, d });
       }
     }
+    out.sort((a, b) => {
+      const ca = a.d.createdAt ?? '';
+      const cb = b.d.createdAt ?? '';
+      if (ca !== cb) return ca < cb ? -1 : 1;
+      return a.d.id < b.d.id ? -1 : a.d.id > b.d.id ? 1 : 0;
+    });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledKey, deferralsByProject, active, activeOwners, query]);
+  }, [enabledKey, deferralsByProject]);
 
-  // Reset to the first page whenever the filter set changes.
-  useEffect(() => { setPage(0); }, [active, activeOwners, query, enabledKey]);
+  function openResolve(id: string) {
+    setOpenId(id);
+    setText('');
+    setError(null);
+  }
 
-  const totalByStore = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const it of items) m[it.store] = (m[it.store] ?? 0) + 1;
-    return m;
-  }, [items]);
+  function cancelResolve() {
+    setOpenId(null);
+    setText('');
+    setError(null);
+  }
 
-  const pageItems = items.slice(page * ROWS_PER_PAGE, page * ROWS_PER_PAGE + ROWS_PER_PAGE);
-  const groupsWithRows = enabledGroups
-    .map((g) => ({ g, rows: pageItems.filter((it) => it.store === g.store) }))
-    .filter((x) => x.rows.length > 0);
-
-  // Resolve the selected record from current data so a push refreshes the panel.
-  const selected = useMemo<Item | null>(() => {
-    if (!selectedKey) return null;
-    for (const g of enabledGroups) {
-      for (const d of recordsOf(g, deferralsByProject)) {
-        if (key(g.store, d.id) === selectedKey) {
-          return { store: g.store, projectName: g.representative.projectName, d };
-        }
+  async function confirmResolve(item: Item) {
+    const trimmed = text.trim();
+    if (!trimmed || inFlight) return;
+    setInFlight(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/projects/${item.projectId}/deferrals/${item.d.id}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolution: trimmed }),
+      });
+      if (res.ok) {
+        setOpenId(null);
+        setText('');
+      } else {
+        const body = await res.json().catch(() => ({} as { error?: string }));
+        setError(body?.error || 'Failed to resolve.');
       }
+    } catch {
+      setError('Failed to resolve.');
+    } finally {
+      setInFlight(false);
     }
-    return null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKey, enabledKey, deferralsByProject]);
+  }
 
-  const chips: Chip[] = STATUSES.map((s) => ({
-    value: s,
-    label: STATUS_LABELS[s] ?? s,
-    count: statusCounts[s],
-  }));
-
-  const ownerChips: Chip[] = OWNERS.map((o) => ({
-    value: o,
-    label: OWNER_LABELS[o] ?? o,
-    count: ownerCounts[o],
-  }));
-
-  const toggle = (value: string) =>
-    setActive((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
-
-  const toggleOwner = (value: string) =>
-    setActiveOwners((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
-
-  const list = (
-    <div>
-      <div className="mb-3 flex flex-col gap-2">
-        <SearchBox onChange={setQuery} placeholder={'Search title, id or origin spec'} />
-        <Chips chips={chips} active={active} onToggle={toggle} />
-        <Chips chips={ownerChips} active={activeOwners} onToggle={toggleOwner} />
-      </div>
-
+  return (
+    <div data-testid="page-list">
       {items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]">
-          {'No deferrals.'}
-        </div>
+        <p data-testid="deferrals-empty" className="text-sm text-[var(--text-muted)]">
+          {'Queue empty'}
+        </p>
       ) : (
-        <>
-          {groupsWithRows.map(({ g, rows }) => (
-            <Group key={g.store} name={g.store} title={g.representative.projectName} count={totalByStore[g.store]}>
-              {rows.map(({ d }) => (
-                <Row
-                  key={d.id}
-                  testId={`deferral-row-${g.representative.projectId}-${d.id}`}
-                  selected={selectedKey === key(g.store, d.id)}
-                  onClick={() => setSelectedKey(key(g.store, d.id))}
-                >
-                  <StatusBadge status={d.status} />
-                  {d.owner && <OwnerBadge owner={d.owner} testId={`deferral-owner-${g.representative.projectId}-${d.id}`} />}
+        <div className="space-y-1">
+          {items.map((item) => {
+            const { d } = item;
+            const isOpen = openId === d.id;
+            return (
+              <div
+                key={d.id}
+                className="border-b border-[var(--border-default)] py-2"
+                data-testid={`deferral-row-${item.projectId}-${d.id}`}
+              >
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="shrink-0 tabular-nums text-xs text-[var(--text-muted)]">{ageText(d.createdAt)}</span>
                   <span className="shrink-0 font-mono text-xs text-[var(--text-muted)]">{d.id}</span>
+                  <span className="shrink-0 text-[var(--text-secondary)]">{item.projectName}</span>
+                  <span className="shrink-0 text-xs text-[var(--text-secondary)]">{d.originSpec || 'project'}</span>
+                  <span className="shrink-0 text-xs text-[var(--text-muted)]">
+                    {Array.isArray(d.tags) ? d.tags.join(', ') : ''}
+                  </span>
+                  {d.owner && <Pill tone="neutral" className="shrink-0">{d.owner}</Pill>}
                   <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{d.title}</span>
-                  <span className="hidden shrink-0 text-xs text-[var(--text-secondary)] sm:inline">
-                    {d.originSpec || 'Project-level'}
-                  </span>
-                  <span className="hidden shrink-0 text-xs text-[var(--text-muted)] md:inline">
-                    {formatDate(d.updatedAt)}
-                  </span>
-                </Row>
-              ))}
-            </Group>
-          ))}
-          <Pager total={items.length} page={page} onPage={setPage} />
-        </>
+                  {!isOpen && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      data-testid={`deferral-resolve-${d.id}`}
+                      onClick={() => openResolve(d.id)}
+                    >
+                      {'Resolve'}
+                    </Button>
+                  )}
+                </div>
+
+                {isOpen && (
+                  <div className="mt-2 flex flex-col gap-2 rounded-md border border-[var(--border-default)] p-2">
+                    <TextInput
+                      data-testid={`deferral-resolution-${d.id}`}
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder={'Resolution'}
+                    />
+                    {error && (
+                      <p data-testid={`deferral-resolve-error-${d.id}`} className="text-xs text-[var(--tone-danger-fg)]">
+                        {error}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        data-testid={`deferral-resolve-confirm-${d.id}`}
+                        disabled={text.trim().length === 0 || inFlight}
+                        onClick={() => confirmResolve(item)}
+                      >
+                        {'Resolve'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        data-testid={`deferral-resolve-cancel-${d.id}`}
+                        onClick={cancelResolve}
+                      >
+                        {'Cancel'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
-    </div>
-  );
-
-  return <PageLayout list={list} panel={selected ? <DeferralPanel item={selected} /> : undefined} />;
-}
-
-function DetailText({ heading, body }: { heading: string; body?: string }) {
-  if (!body || !body.trim()) return null;
-  return (
-    <div>
-      <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{heading}</h4>
-      <p className="whitespace-pre-wrap text-sm text-[var(--text-primary)]">{body}</p>
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  if (value === null || value === undefined || value === '') return null;
-  return (
-    <div className="flex gap-2 text-sm">
-      <span className="shrink-0 text-[var(--text-muted)]">{label}</span>
-      <span className="min-w-0 break-words text-[var(--text-primary)]">{value}</span>
-    </div>
-  );
-}
-
-function DeferralPanel({ item }: { item: Item }) {
-  const { d, projectName } = item;
-  return (
-    <div className={`${ui.panel} p-4`} data-testid="deferral-panel">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <h2 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{d.title}</h2>
-        <StatusBadge status={d.status} />
-      </div>
-
-      <div className="space-y-1.5">
-        <Field label={'ID'} value={<span className="font-mono text-xs">{d.id}</span>} />
-        <Field label={'Project'} value={projectName} />
-        <Field label={'Owner'} value={d.owner || undefined} />
-        <Field label={'Origin spec'} value={d.originSpec || 'Project-level'} />
-        <Field label={'Phase'} value={d.originPhase || undefined} />
-        <Field label={'Created'} value={formatDate(d.createdAt)} />
-        <Field label={'Updated'} value={formatDate(d.updatedAt)} />
-        {d.status === 'resolved' && (
-          <Field
-            label={'Resolved'}
-            value={`${formatDate(d.resolvedAt || undefined)}${d.resolvedInSpec ? ` (${d.resolvedInSpec})` : ''}`}
-          />
-        )}
-        {Array.isArray(d.tags) && d.tags.length > 0 && (
-          <Field
-            label={'Tags'}
-            value={
-              <span className="flex flex-wrap gap-1">
-                {d.tags.map((tg) => (
-                  <span key={tg} className="rounded-sm bg-[var(--surface-inset)] px-1.5 py-0.5 text-xs text-[var(--text-secondary)]">#{tg}</span>
-                ))}
-              </span>
-            }
-          />
-        )}
-      </div>
-
-      <div className="mt-3 space-y-3 border-t border-[var(--border-default)] pt-3">
-        <DetailText heading={'Revisit trigger'} body={d.revisitTrigger} />
-        {d.status === 'resolved' && <DetailText heading={'Resolution'} body={d.resolution || undefined} />}
-        <DetailText heading={'Context'} body={d.body?.context} />
-        <DetailText heading={'Decision'} body={d.body?.decision} />
-        <DetailText heading={'Revisit criteria'} body={d.body?.revisitCriteria} />
-      </div>
     </div>
   );
 }

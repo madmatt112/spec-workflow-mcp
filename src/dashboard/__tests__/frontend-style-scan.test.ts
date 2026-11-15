@@ -21,13 +21,10 @@ import { fileURLToPath } from 'url';
 //    regexes/rule list, copied unchanged per task instruction).
 //  - the aggregate test (pre-condition: the real FE tree as tasks 2-4 leave
 //    it; call: walking FE_ROOT through scanFile; observable: zero hits;
-//    source: Requirement 2.1/2.3) and the Usage trend test (pre-condition:
-//    UsageTrend.tsx's own source; call: reading its SERIES declaration;
-//    observable: the six values are var(--chart-1)..var(--chart-6) in
-//    order; source: Requirement 2.4/design C6) run against the real,
-//    unmodified FE source, so they are red now for the same reason design
-//    cites for T2/T3: the task-5 sweep (bridge removal, UsageTrend/RunPage
-//    fixes) has not happened yet.
+//    source: Requirement 2.1/2.3) runs against the real, unmodified FE
+//    source, so it is red now for the same reason design cites for T2/T3:
+//    the task-5 sweep (bridge removal, UsageTrend/RunPage fixes) has not
+//    happened yet.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FE_ROOT = join(HERE, '..', '..', 'dashboard_frontend', 'src');
@@ -442,26 +439,6 @@ describe('frontend-style-scan (design C7 T1)', () => {
         });
       }
       expect(hits).toEqual([]);
-    });
-  });
-
-  describe('Usage trend series colours (Requirement 2.4, design C6)', () => {
-    it('declares SERIES as var(--chart-1) through var(--chart-6) in that order', () => {
-      const text = readFileSync(join(FE_ROOT, 'modules', 'shell', 'UsageTrend.tsx'), 'utf-8');
-      const match = text.match(/const SERIES\s*=\s*\[([^\]]*)\]/);
-      expect(match, 'UsageTrend.tsx declares a SERIES array').not.toBeNull();
-      const values = match![1]
-        .split(',')
-        .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
-        .filter(Boolean);
-      expect(values).toEqual([
-        'var(--chart-1)',
-        'var(--chart-2)',
-        'var(--chart-3)',
-        'var(--chart-4)',
-        'var(--chart-5)',
-        'var(--chart-6)',
-      ]);
     });
   });
 });

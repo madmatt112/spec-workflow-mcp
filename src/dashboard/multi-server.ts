@@ -11,6 +11,7 @@ import { WebSocket } from 'ws';
 import { validateAndCheckPort, DASHBOARD_TEST_MESSAGE } from './utils.js';
 import { ProjectManager } from './project-manager.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
+import { deferralsHandler } from '../tools/deferrals.js';
 import { IndexGenerator } from '../core/index-generator.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
 import {
@@ -29,9 +30,7 @@ import { buildSetupView, defaultSetupInput, validateSetup, readAgentRules } from
 import { evaluateLaunchGuard } from './harness/launch-guard.js';
 import type { HarnessMessage, SetupInput, SetupView, ValidationError } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
-import { buildSpecDetail } from './shell/spec-rows.js';
-import { buildUsageRows } from './shell/usage-rows.js';
-import { FileCache } from './shell/file-cache.js';
+import { buildUsageView } from './shell/usage-view.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord } from '../controller/waits.js';
 import { checkAnswerKeys, listActions, confirmAction, dismissAction, type ActionDeps } from '../advisor/actions.js';
@@ -158,9 +157,6 @@ export class MultiProjectDashboardServer {
   // Debounce spec broadcasts to coalesce rapid updates
   private pendingSpecBroadcasts: Map<string, NodeJS.Timeout> = new Map();
   private readonly SPEC_BROADCAST_DEBOUNCE_MS = 300;
-  // One server-lifetime cache shared by every usage-route request (design C10):
-  // reused while each file's mtime/size is unchanged, never written by the route.
-  private usageCache = new FileCache();
 
   constructor(options: MultiDashboardOptions = {}) {
     this.options = options;
@@ -606,40 +602,59 @@ export class MultiProjectDashboardServer {
       return await this.buildDeferralsPayload(project.projectPath);
     });
 
-    // Shell spec detail panel (design C8). 404 for an unknown project or a bad,
-    // missing or foreign spec name; otherwise the SpecDetail with no file content.
-    this.app.get('/api/shell/projects/:projectId/specs/:specName', async (request, reply) => {
-      const { projectId, specName } = request.params as { projectId: string; specName: string };
+    // Resolve a deferred decision without a session (design C7; Requirement
+    // 7.4-7.6). Classifies the request with store reads first, then calls
+    // deferralsHandler (D19); writes nothing until every check passes.
+    this.app.post('/api/projects/:projectId/deferrals/:deferralId/resolve', async (request, reply) => {
+      const { projectId, deferralId } = request.params as { projectId: string; deferralId: string };
+      const body = (request.body ?? {}) as { resolution?: unknown };
+      const resolution = body.resolution;
+      if (typeof resolution !== 'string') {
+        return reply.code(400).send({ error: 'invalid-resolution' });
+      }
+      const trimmed = resolution.trim();
+      if (trimmed.length === 0 || trimmed.length > 2000) {
+        return reply.code(400).send({ error: 'invalid-resolution' });
+      }
+
       const project = this.projectManager.getProject(projectId);
-      if (!project) return reply.code(404).send({ error: 'Project not found' });
-      const detail = await buildSpecDetail(project, specName);
-      if (!detail) return reply.code(404).send({ error: 'Spec not found' });
-      return detail;
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+
+      if (!/^[A-Za-z0-9_-]+$/.test(deferralId)) {
+        return reply.code(404).send({ error: 'Deferral not found' });
+      }
+
+      const storage = new DeferralStorage(project.projectPath);
+      const record = await storage.get(deferralId);
+      if (!record) {
+        if (!(await storage.fileExists(deferralId))) {
+          return reply.code(404).send({ error: 'Deferral not found' });
+        }
+        return reply.code(409).send({
+          error: `Deferral ${deferralId} exists on disk but its frontmatter could not be parsed. ` +
+            `Run the deferrals 'reindex' action to normalize the store, then retry.`
+        });
+      }
+      if (record.status !== 'deferred') {
+        return reply.code(409).send({ error: `Deferral ${deferralId} is already ${record.status}` });
+      }
+
+      const result = await deferralsHandler(
+        { action: 'resolve', projectPath: project.projectPath, id: deferralId, resolution: trimmed },
+        { projectPath: project.projectPath, workspacePath: project.workspacePath }
+      );
+      if (!result.success) {
+        return reply.code(409).send({ error: result.message });
+      }
+      return { ok: true };
     });
 
-    // Shell usage panel (design C10; Requirement 3 AC1, AC10). Read-only, no
-    // parameters: one closed-spec row per closed spec of every known project
-    // (not only toggled-on ones), sorted by projectName then closeDate newest
-    // first with null last. A project whose rows cannot be built is skipped
-    // (logged once for the request), never an error status (NFR Reliability).
-    this.app.get('/api/shell/usage/closed-specs', async () => {
-      const rows = [];
-      for (const project of this.projectManager.getAllProjects()) {
-        try {
-          rows.push(...await buildUsageRows(project, this.usageCache));
-        } catch {
-          console.warn(`ShellUsage: skipping project ${project.projectId}`);
-        }
-      }
-      rows.sort((a, b) => {
-        const byName = a.projectName.localeCompare(b.projectName);
-        if (byName !== 0) return byName;
-        if (a.closeDate === b.closeDate) return 0;
-        if (a.closeDate === null) return 1;
-        if (b.closeDate === null) return -1;
-        return a.closeDate < b.closeDate ? 1 : -1; // newest first
-      });
-      return { rows };
+    // Usage page (design C6/C7; Requirement 4, 5). The window, the burn and
+    // one line per live run of every registered project, enabled or not.
+    this.app.get('/api/shell/usage', async () => {
+      return await buildUsageView(this.projectManager.getAllProjects());
     });
 
     // ── Harness control-pane routes (design C7; Requirement 3) ──

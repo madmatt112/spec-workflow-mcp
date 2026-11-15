@@ -11,6 +11,7 @@ import { IndexGenerator } from '../../core/index-generator.js';
 import { handoffPath } from '../../watch/index.js';
 import { AGENT_PROFILES } from '../../watch/ledger.js';
 import type { AgentProfile } from '../../watch/ledger.js';
+import type { RoutingDecision } from '../../core/spec-routing-deriver.js';
 import type { SpecIndexEntry } from '../../types.js';
 import type { ProjectContext } from '../project-manager.js';
 import { parseHandoffRouting } from './project-watch.js';
@@ -199,10 +200,7 @@ export async function buildSetupView(
   // Routing sees only specs on disk. Every state but `active` names no spec to
   // work on from what's on disk; the next spec may still be one decomposition.md
   // names that has no directory yet, so fall back to that before giving up.
-  const unstarted = routing.state !== 'active'
-    ? nextUnstartedSpec(workflowRoot)
-    : null;
-  const launchable = routing.state === 'active' ? routing.spec : unstarted;
+  const launchable = launchableSpec(routing, workflowRoot);
   const disabledReason = launchable ? null : routing.reason;
   const launchableOrder = decompositionPosition(workflowRoot, launchable);
 
@@ -225,10 +223,11 @@ export async function buildSetupView(
 
 /**
  * The first spec decomposition.md names in a `### <n>. \`<name>\`` heading that has
- * no `specs/<name>/` directory and is not tagged `(deferred)`, else null.
+ * no `specs/<name>/` directory and is not tagged `(deferred)`, else null. `text`,
+ * when given, is read in place of the file (design C4).
  */
-export function nextUnstartedSpec(workflowRoot: string): string | null {
-  const decomposition = readIfExists(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
+export function nextUnstartedSpec(workflowRoot: string, text?: string): string | null {
+  const decomposition = text ?? readIfExists(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
   if (!decomposition) return null;
   for (const line of decomposition.split('\n')) {
     const m = DECOMPOSITION_HEADING.exec(line);
@@ -236,6 +235,37 @@ export function nextUnstartedSpec(workflowRoot: string): string | null {
     if (!existsSync(join(workflowRoot, 'specs', m[1]))) return m[1];
   }
   return null;
+}
+
+/**
+ * Every `DECOMPOSITION_HEADING` line of `text`, in file order (design C4).
+ * `number` is the digits after `###`; `deferredTag` is `/\(deferred\)/i` on
+ * the tail group.
+ */
+export function decompositionHeadings(
+  text: string,
+): { number: string; spec: string; deferredTag: boolean }[] {
+  const headings: { number: string; spec: string; deferredTag: boolean }[] = [];
+  for (const line of text.split('\n')) {
+    const m = DECOMPOSITION_HEADING.exec(line);
+    if (!m) continue;
+    const number = /^###\s+(\d+)\./.exec(line)![1];
+    headings.push({ number, spec: m[1], deferredTag: /\(deferred\)/i.test(m[2]) });
+  }
+  return headings;
+}
+
+/**
+ * The spec to launch next: `routing.spec` outright for an `active` routing,
+ * else the first unstarted, undeferred decomposition heading (design C4).
+ * `text`, when given, is passed through to `nextUnstartedSpec`.
+ */
+export function launchableSpec(
+  routing: RoutingDecision,
+  workflowRoot: string,
+  text?: string,
+): string | null {
+  return routing.state === 'active' ? routing.spec : nextUnstartedSpec(workflowRoot, text);
 }
 
 /**

@@ -8,6 +8,9 @@ import {
   buildSetupView,
   validateSetup,
   defaultSetupInput,
+  decompositionHeadings,
+  launchableSpec,
+  nextUnstartedSpec,
   MODEL_ALIASES,
   DEEPSEEK_MODELS,
   ELIGIBLE_ROLES,
@@ -341,6 +344,93 @@ import { IndexGenerator } from '../../../core/index-generator.js';
 //   is 0.
 //   Expected-value source: design C5 — the fallback spec's position is
 //   computed the same way as a routing.spec launchable.
+
+// Contract addendum for task 3 (design.md C4; task 3 _Prompt; Requirements
+// 1.2, 2.5, 2.8).
+//
+// Criterion "headings stay in file order regardless of their written number"
+//   (Requirement 1.2; design C4):
+//   Pre-condition: text with a `### 34.` heading before a `### 12.` heading.
+//   Test: decompositionHeadings(text).
+//   Observable result: [{ number: '34', spec: 'foo', deferredTag: false },
+//   { number: '12', spec: 'bar', deferredTag: false }] — `foo` first.
+//   Expected-value source: the task 3 _Prompt ("in file order ... a `34`
+//   heading before a `12` heading stays first").
+//
+// Criterion "deferredTag true for a (Deferred) tail" (Requirement 1.2;
+//   design C4):
+//   Pre-condition: text with one heading whose tail reads "— parked
+//   (Deferred)" (mixed case).
+//   Test: decompositionHeadings(text).
+//   Observable result: [{ number: '1', spec: 'foo', deferredTag: true }].
+//   Expected-value source: design C4 ("`deferredTag` is `/\(deferred\)/i`
+//   on the tail group").
+//
+// Criterion "deferredTag false with no tag" (Requirement 1.2; design C4):
+//   Pre-condition: text with one heading whose tail carries no `(deferred)`.
+//   Test: decompositionHeadings(text).
+//   Observable result: [{ number: '1', spec: 'foo', deferredTag: false }].
+//   Expected-value source: the task 3 _Prompt ("false with no tag").
+//
+// Criterion "a `## ` heading gives no entry" (Requirement 1.2; design C4):
+//   Pre-condition: text with one `##` (not `###`) heading line.
+//   Test: decompositionHeadings(text).
+//   Observable result: [].
+//   Expected-value source: the task 3 _Prompt ("a `## ` heading ... give[s]
+//   no entry") and `DECOMPOSITION_HEADING` requiring `###`.
+//
+// Criterion "a `### ` line with no backticked name gives no entry"
+//   (Requirement 1.2; design C4):
+//   Pre-condition: text with one `###` heading line whose name is not
+//   backticked.
+//   Test: decompositionHeadings(text).
+//   Observable result: [].
+//   Expected-value source: the task 3 _Prompt and `DECOMPOSITION_HEADING`
+//   requiring a backticked name.
+//
+// Criterion "empty text gives []" (Requirement 1.2; design C4):
+//   Pre-condition: the empty string.
+//   Test: decompositionHeadings('').
+//   Observable result: [].
+//   Expected-value source: the task 3 _Prompt ("empty text gives `[]`").
+//
+// Criterion "nextUnstartedSpec given text reads the text, not the file"
+//   (Requirement 2.5; design C4):
+//   Pre-condition: a workflow root with no `decomposition.md` anywhere, and
+//   a `text` argument naming one unstarted heading.
+//   Test: nextUnstartedSpec(workflowRoot, text).
+//   Observable result: the heading's spec name, not null.
+//   Expected-value source: the task 3 _Prompt ("`nextUnstartedSpec` given
+//   text reads the text, not the file, in a root with no
+//   `decomposition.md`").
+//
+// Criterion "launchableSpec returns the routed spec for an active routing"
+//   (Requirement 2.8; design C4):
+//   Pre-condition: a `routing` of state `active` naming spec `alpha`; a
+//   workflow root with no `decomposition.md`.
+//   Test: launchableSpec(routing, workflowRoot).
+//   Observable result: 'alpha'.
+//   Expected-value source: design C4 ("the expression at
+//   `src/dashboard/harness/run-setup.ts:202-205`, moved into a function") —
+//   that expression returns `routing.spec` outright for `active`.
+//
+// Criterion "launchableSpec falls back to the first unstarted, undeferred
+//   heading for a non-active routing" (Requirement 2.8; design C4):
+//   Pre-condition: a non-active `routing`; decomposition text naming a
+//   heading with a spec directory, then a `(deferred)` heading with none,
+//   then a plain heading with none.
+//   Test: launchableSpec(routing, workflowRoot, text).
+//   Observable result: the third heading's spec name.
+//   Expected-value source: same expression as above, for the non-`active`
+//   branch (`nextUnstartedSpec`'s rule).
+//
+// Criterion "launchableSpec gives null when no heading qualifies"
+//   (Requirement 2.8; design C4):
+//   Pre-condition: a non-active `routing`; decomposition text whose only
+//   headings either have a spec directory or carry `(deferred)`.
+//   Test: launchableSpec(routing, workflowRoot, text).
+//   Observable result: null.
+//   Expected-value source: same expression — no spec qualifies, else null.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROVIDERS_SCRIPT = join(here, '../../../../harness/skills/sdd-continue/references/sdd-providers.sh');
@@ -958,6 +1048,92 @@ describe('run-setup', () => {
       const payload: SetupInput = { ...defaultSetupInput(view), spec: 'alpha', gates: 'record' };
 
       expect(validateSetup(payload, view)).toBeNull();
+    });
+  });
+
+  describe('decompositionHeadings', () => {
+    it('keeps headings in file order regardless of their written number (Req 1.2)', () => {
+      const text = ['### 34. `foo`', '', '### 12. `bar`', ''].join('\n');
+
+      expect(decompositionHeadings(text)).toEqual([
+        { number: '34', spec: 'foo', deferredTag: false },
+        { number: '12', spec: 'bar', deferredTag: false },
+      ]);
+    });
+
+    it('marks deferredTag true for a (Deferred) tail, any case (Req 1.2)', () => {
+      const text = '### 1. `foo` — parked (Deferred)';
+
+      expect(decompositionHeadings(text)).toEqual([
+        { number: '1', spec: 'foo', deferredTag: true },
+      ]);
+    });
+
+    it('marks deferredTag false when the tail carries no tag (Req 1.2)', () => {
+      const text = '### 1. `foo` — active';
+
+      expect(decompositionHeadings(text)).toEqual([
+        { number: '1', spec: 'foo', deferredTag: false },
+      ]);
+    });
+
+    it('gives no entry for a `## ` heading (Req 1.2)', () => {
+      const text = '## 1. `foo`';
+
+      expect(decompositionHeadings(text)).toEqual([]);
+    });
+
+    it('gives no entry for a `### ` line with no backticked name (Req 1.2)', () => {
+      const text = '### 1. foo';
+
+      expect(decompositionHeadings(text)).toEqual([]);
+    });
+
+    it('gives [] for empty text (Req 1.2)', () => {
+      expect(decompositionHeadings('')).toEqual([]);
+    });
+  });
+
+  describe('nextUnstartedSpec with a text argument', () => {
+    it('reads the given text, not the file, in a root with no decomposition.md (Req 2.5)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      const text = '### 1. `fromtext`';
+
+      expect(nextUnstartedSpec(workflowRoot, text)).toBe('fromtext');
+    });
+  });
+
+  describe('launchableSpec', () => {
+    it('returns the routed spec outright for an active routing (Req 2.8)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      const routing = { state: 'active' as const, spec: 'alpha', reason: 'test fixture', candidates: [], warnings: [] };
+
+      expect(launchableSpec(routing, workflowRoot)).toBe('alpha');
+    });
+
+    it('falls back to the first heading with no spec directory and no deferred tag (Req 2.8)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'done', {});
+      const text = [
+        '### 1. `done`', '',
+        '### 2. `skip-me` — parked (deferred)', '',
+        '### 3. `target`', '',
+      ].join('\n');
+      const routing = { state: 'ambiguous' as const, spec: null, reason: 'test fixture', candidates: [], warnings: [] };
+
+      expect(launchableSpec(routing, workflowRoot, text)).toBe('target');
+    });
+
+    it('gives null for a non-active routing when no heading qualifies (Req 2.8)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'done', {});
+      const text = [
+        '### 1. `done`', '',
+        '### 2. `also-deferred` — parked (deferred)', '',
+      ].join('\n');
+      const routing = { state: 'ambiguous' as const, spec: null, reason: 'test fixture', candidates: [], warnings: [] };
+
+      expect(launchableSpec(routing, workflowRoot, text)).toBeNull();
     });
   });
 
