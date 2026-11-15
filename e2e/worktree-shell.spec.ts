@@ -123,6 +123,7 @@ test.describe.serial('Dashboard shell end to end', () => {
     // when the first client connects. The gate test then appends the phase rows
     // and the append — not a reload — is what surfaces the wait.
     const wtA = harness.getWorktree('wt-a');
+    const wtB = harness.getWorktree('wt-b');
     const specADir = join(wtA.path, '.spec-workflow', 'specs', 'spec-a');
     ledgerPathA = join(specADir, 'harness-events.jsonl');
     await mkdir(specADir, { recursive: true });
@@ -134,6 +135,23 @@ test.describe.serial('Dashboard shell end to end', () => {
     await writeFile(
       ledgerPathA,
       JSON.stringify({ ts: '2026-10-06T10:00:00.000Z', type: 'run.start', run: 'run-1', spec: 'spec-a' }) + '\n',
+      'utf-8'
+    );
+
+    // Each decomposition names its own project's spec (D30), plus, for
+    // project A, a second heading tagged `(deferred)` whose entry text names
+    // a deferral id with no matching record, so the Specs page falls back to
+    // the entry-text id (design D5).
+    await mkdir(join(wtA.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(wtA.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-a`\n\n### 2. `deferred-demo` (deferred)\n\nDeferral record d-0000abcd covers this spec.\n',
+      'utf-8'
+    );
+    await mkdir(join(wtB.path, '.spec-workflow', 'spec-decomposition'), { recursive: true });
+    await writeFile(
+      join(wtB.path, '.spec-workflow', 'spec-decomposition', 'decomposition.md'),
+      '### 1. `spec-b`\n',
       'utf-8'
     );
 
@@ -225,38 +243,34 @@ test.describe.serial('Dashboard shell end to end', () => {
     }
   });
 
-  test('toggling a project off hides its Specs rows and the state survives a reload', async ({ page }) => {
+  test('toggling a project off hides its Specs line and the state survives a reload', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/#/specs');
 
-    const rowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
-    const rowB = page.getByTestId(`spec-row-${projectB.projectId}-spec-b`);
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    await expect(rowB).toBeVisible();
+    const lineA = page.getByTestId(`spec-line-${projectA.projectId}-spec-a`);
+    const lineB = page.getByTestId(`spec-line-${projectB.projectId}-spec-b`);
+    await expect(lineA).toBeVisible({ timeout: 15000 });
+    await expect(lineB).toBeVisible();
 
     // The toggle lives in the gear panel now (task 16), so it opens first.
     await page.getByTestId('gear-toggle').click();
     await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
-    await expect(rowB).toHaveCount(0);
-    await expect(rowA).toBeVisible();
+    await expect(lineB).toHaveCount(0);
+    await expect(lineA).toBeVisible();
 
     await page.reload();
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    await expect(rowB).toHaveCount(0);
+    await expect(lineA).toBeVisible({ timeout: 15000 });
+    await expect(lineB).toHaveCount(0);
   });
 
-  test('at 1000 px the panel stacks below the list', async ({ page }) => {
-    await page.setViewportSize({ width: 1000, height: 900 });
+  test('a (deferred) decomposition heading with no matching record shows the entry\'s deferral id', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/#/specs');
 
-    const rowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    await rowA.click();
-    await expect(page.getByTestId('spec-panel')).toBeVisible({ timeout: 15000 });
-
-    const listBox = (await page.getByTestId('page-list').boundingBox())!;
-    const panelBox = (await page.getByTestId('page-panel').boundingBox())!;
-    expect(panelBox.y).toBeGreaterThanOrEqual(listBox.y + listBox.height - 2);
+    const line = page.getByTestId(`spec-line-${projectA.projectId}-deferred-demo`);
+    await expect(line).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId(`spec-word-${projectA.projectId}-deferred-demo`)).toContainText('deferred');
+    await expect(line).toContainText('d-0000abcd');
   });
 
   test('(R2) the Deferrals page owner chip counts, filters by AND and shows the owner', async ({ page }) => {
