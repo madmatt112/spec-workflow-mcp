@@ -315,3 +315,7 @@
 {"ts":"2026-11-15T15:42:35.710Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P2","outcome":"to-do"}
 {"ts":"2026-11-15T15:42:35.710Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P3","outcome":"to-do"}
 {"ts":"2026-11-15T15:42:35.711Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-11-15T15:43:54.272Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"merge answered by operator: merge"}
+{"ts":"2026-11-15T15:44:06.983Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"pr.merged","number":"220","sha":"8015eaed9261abc778cc760646c2577fe11e1d8b","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-11-15T15:44:06.987Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"note","text":"close-out merge: close-out PR #220 of spec-workflow-mcp merged (merged close-out PR #220 of spec-workflow-mcp via merge)"}
+{"ts":"2026-11-15T15:44:06.990Z","run":"run-20261114-021941","spec":"dashboard-plain-pages","type":"run.end","status":"done"}
