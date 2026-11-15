@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/usage-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/usage-view.test.ts":"buildUsageView(projects, nowMs)"},"redCommit":"11ca39db99a7e3833abe4b6395a0eaa221d0c076","baseSha":"8c61e5e759b3cf18eff019d463b26543a560e8f7","base":"structural-red","head":"pass","amended":false,"judged":null}

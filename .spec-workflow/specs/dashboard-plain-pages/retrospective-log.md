@@ -34,3 +34,8 @@ Cost: 2 rounds
 task 5 closed: 2 fix round(s), outcome adjudicated
 Evidence: task 5 · mark run-20261114-021941 dc8d31a2
 Cost: 3 implementer spawn(s)
+
+## 2026-11-15T04:47:17Z · implementation · task 6 · gotcha
+task 6 closed: 0 fix round(s), outcome gate
+Evidence: task 6 · mark run-20261114-021941 b95e6256
+Cost: 1 implementer spawn(s)
