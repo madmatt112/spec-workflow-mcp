@@ -274,32 +274,100 @@ test.describe.serial('Dashboard shell end to end', () => {
     await expect(line).toContainText('d-0000abcd');
   });
 
-  test('(R2) the Deferrals page owner chip counts, filters by AND and shows the owner', async ({ page }) => {
+  test('(R4) the Deferrals page lists the queue oldest first and resolves records with Resolve', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
+    await login(page);
+
+    const storageA = new DeferralStorage(projectA.projectPath);
+    const records = await storageA.list();
+    const byTitle = (title: string) => records.find((r) => r.title === title)!;
+    const matthewRecord = byTitle('Owned by matthew');
+    const harnessRecord = byTitle('Owned by harness');
+    const noneRecord = byTitle('No owner recorded');
+
+    // The page's own sort (design C10): oldest `createdAt` first, ties by id.
+    const expectedOrder = [...records]
+      .filter((r) => r.status === 'deferred')
+      .sort((a, b) => {
+        if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+
     await page.goto('/#/deferrals');
 
     // Project A's three deferrals; project B has none.
     const rows = page.locator('[data-testid^="deferral-row-"]');
     await expect(rows).toHaveCount(3, { timeout: 15000 });
 
-    // The matthew owner chip counts exactly the one matthew-owned record.
-    await expect(page.getByTestId('chip-matthew')).toContainText('1');
+    // Oldest first, columns in order (age, id, project, spec, tag, owner,
+    // summary); `matthew` shows in its owner cell.
+    for (let i = 0; i < expectedOrder.length; i++) {
+      await expect(rows.nth(i)).toContainText(expectedOrder[i].title);
+    }
+    await expect(rows.nth(0)).toContainText(projectA.projectName);
+    await expect(rows.nth(0)).toContainText('spec-a');
+    await expect(page.getByTestId(`deferral-row-${projectA.projectId}-${matthewRecord.id}`)).toContainText('matthew');
 
-    // Selecting it leaves only the matthew-owned row.
-    await page.getByTestId('chip-matthew').click();
-    await expect(rows).toHaveCount(1);
+    // No chips, search, pager or detail panel (Requirement 6 AC4).
+    await expect(page.locator('[data-testid^="chip-"]')).toHaveCount(0);
+    await expect(page.getByTestId('deferral-panel')).toHaveCount(0);
 
-    // The panel shows the Owner.
-    await rows.first().click();
-    const panel = page.getByTestId('deferral-panel');
-    await expect(panel).toBeVisible();
-    await expect(panel).toContainText('Owner');
-    await expect(panel).toContainText('matthew');
+    // Resolve opens a box; Cancel closes it and writes nothing.
+    await page.getByTestId(`deferral-resolve-${matthewRecord.id}`).click();
+    const matthewConfirm = page.getByTestId(`deferral-resolve-confirm-${matthewRecord.id}`);
+    const matthewResolution = page.getByTestId(`deferral-resolution-${matthewRecord.id}`);
+    await expect(matthewConfirm).toBeDisabled();
+    await matthewResolution.fill('not resolving this one');
+    await expect(matthewConfirm).toBeEnabled();
+    await page.getByTestId(`deferral-resolve-cancel-${matthewRecord.id}`).click();
+    await expect(matthewResolution).toHaveCount(0);
+    expect((await storageA.get(matthewRecord.id))?.status).toBe('deferred');
 
-    // Status chips AND with owner chips: the matthew record is `deferred`, so
-    // also selecting `resolved` (an OR would keep it) leaves no row.
-    await page.getByTestId('chip-resolved').click();
-    await expect(rows).toHaveCount(0);
+    // The confirm is disabled while the request is in flight, so one press sends one request.
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
+    let requestCount = 0;
+    await page.route(`**/api/projects/${projectA.projectId}/deferrals/${harnessRecord.id}/resolve`, async (route) => {
+      requestCount += 1;
+      await gate;
+      await route.continue();
+    });
+    await page.getByTestId(`deferral-resolve-${harnessRecord.id}`).click();
+    await page.getByTestId(`deferral-resolution-${harnessRecord.id}`).fill('resolving now');
+    const harnessConfirm = page.getByTestId(`deferral-resolve-confirm-${harnessRecord.id}`);
+    await harnessConfirm.click();
+    await expect(harnessConfirm).toBeDisabled();
+    releaseGate();
+
+    // The row leaves after the `deferrals-update` push (the settling signal),
+    // then the file is asserted (Requirement 7 AC7).
+    await expect(rows).toHaveCount(2, { timeout: 15000 });
+    expect(requestCount).toBe(1);
+    const harnessAfter = await storageA.get(harnessRecord.id);
+    expect(harnessAfter?.status).toBe('resolved');
+    expect(harnessAfter?.resolution).toBe('resolving now');
+
+    // A routed error shows its reason, keeps the typed text and the box open.
+    await page.route(`**/api/projects/${projectA.projectId}/deferrals/${noneRecord.id}/resolve`, (route) =>
+      route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'Deferral already resolved' }) }),
+    );
+    await page.getByTestId(`deferral-resolve-${noneRecord.id}`).click();
+    const noneResolution = page.getByTestId(`deferral-resolution-${noneRecord.id}`);
+    await noneResolution.fill('typed before the error');
+    await page.getByTestId(`deferral-resolve-confirm-${noneRecord.id}`).click();
+    await expect(page.getByTestId(`deferral-resolve-error-${noneRecord.id}`)).toContainText('Deferral already resolved');
+    await expect(noneResolution).toHaveValue('typed before the error');
+    expect((await storageA.get(noneRecord.id))?.status).toBe('deferred');
+
+    // With every project toggled off the page shows "Queue empty"; the
+    // toggles go back on before the case ends.
+    await page.getByTestId('gear-toggle').click();
+    await page.getByTestId(`project-toggle-${projectA.projectId}`).click();
+    await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
+    await expect(page.getByTestId('deferrals-empty')).toContainText('Queue empty');
+    await page.getByTestId(`project-toggle-${projectA.projectId}`).click();
+    await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
+    await expect(rows).toHaveCount(2);
   });
 
   test('(R3) the Usage page shows the window, the burn and each live run\'s fit', async ({ page }) => {

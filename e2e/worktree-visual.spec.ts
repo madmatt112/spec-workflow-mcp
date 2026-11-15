@@ -51,8 +51,8 @@ test.describe.serial('Dashboard visual suite', () => {
 
   /**
    * Navigates `page` to one of the four views: Specs waits for its first
-   * block, no panel opens (design C8, D17); Deferrals still opens the first
-   * row's panel, the same way `../worktree-shell.spec.ts`'s own tests do.
+   * block, no panel opens (design C8, D17); Deferrals waits for its first
+   * row and opens no panel either (design C10 Restrictions).
    */
   async function openView(page: Page, view: View): Promise<void> {
     switch (view) {
@@ -70,8 +70,7 @@ test.describe.serial('Dashboard visual suite', () => {
         break;
       case 'deferrals':
         await page.goto('/#/deferrals');
-        await page.locator('[data-testid^="deferral-row-"]').first().click({ timeout: 15000 });
-        await expect(page.getByTestId('deferral-panel')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid^="deferral-row-"]').first()).toBeVisible({ timeout: 15000 });
         break;
     }
   }
