@@ -30,6 +30,7 @@ interface RunOutcome {
   init: Record<string, unknown> | undefined;
   activity: ActivityEvent[];
   windows: RateLimitWindows[];
+  rateLimitRuns: Array<string | null | undefined>;
 }
 
 const savedEnv = { ...process.env };
@@ -68,6 +69,7 @@ async function runWithScript(
 
   const activity: ActivityEvent[] = [];
   const windows: RateLimitWindows[] = [];
+  const rateLimitRuns: Array<string | null | undefined> = [];
   const spec: StepSpec = {
     role: 'sdd-reviewer',
     briefPath,
@@ -76,7 +78,7 @@ async function runWithScript(
     maxTurns: 8,
     sessionId: 'sess-1',
     onActivity: (a) => activity.push(a),
-    onRateLimit: (w) => windows.push(w),
+    onRateLimit: (w, run) => { windows.push(w); rateLimitRuns.push(run); },
     ...overrides,
   };
   const result = await runner(spec);
@@ -88,7 +90,7 @@ async function runWithScript(
       try { return JSON.parse(l) as Record<string, unknown>; } catch { return { _raw: l }; }
     });
   const init = lines.find((l) => l.type === 'system' && l.subtype === 'init');
-  return { result, dir, worktree, logPath, lines, init, activity, windows };
+  return { result, dir, worktree, logPath, lines, init, activity, windows, rateLimitRuns };
 }
 
 function assistantToolUse(name: string, input: Record<string, unknown>): Record<string, unknown> {
@@ -252,6 +254,52 @@ describe('runStep', () => {
     expect(windows[0].status).toBe('rejected');
     expect(windows[0].sevenDay).toEqual({ utilization: 0.99, resetsAt: 1791730800 });
     expect(windows[0].fiveHour.utilization).toBe(0.4);
+  });
+
+  // Requirement 3 AC1, design C2/D13: the run id reaches onRateLimit's second
+  // argument. Pre: a spec with `runId: 'run-x'`; call: runStep on a stream with
+  // one rate_limit_event; result: the fake records 'run-x'. Source: design C2
+  // line 41 (`spec.onRateLimit?.(lastRateLimit, spec.runId ?? null)`).
+  it('passes the spec runId to onRateLimit when the stream emits a rate_limit_event', async () => {
+    const { rateLimitRuns } = await runWithScript([{
+      stream: [{
+        type: 'rate_limit_event',
+        rate_limit_info: {
+          status: 'allowed', overageStatus: 'allowed',
+          unifiedWindows: {
+            five_hour: { utilization: 0.1, resetsAt: 1791703800 },
+            seven_day: { utilization: 0.2, resetsAt: 1791730800 },
+          },
+        },
+      }],
+      result: {
+        subtype: 'success', is_error: false, num_turns: 1, session_id: 'sess-1',
+        result: 'ok', usage: {},
+      },
+    }], { runId: 'run-x' });
+    expect(rateLimitRuns).toEqual(['run-x']);
+  });
+
+  // Same seam, no runId: design C2 line 41 passes `spec.runId ?? null`, so a
+  // spec with no runId gives null, not undefined. Source: design C2 line 41.
+  it('passes null to onRateLimit when the spec has no runId', async () => {
+    const { rateLimitRuns } = await runWithScript([{
+      stream: [{
+        type: 'rate_limit_event',
+        rate_limit_info: {
+          status: 'allowed', overageStatus: 'allowed',
+          unifiedWindows: {
+            five_hour: { utilization: 0.1, resetsAt: 1791703800 },
+            seven_day: { utilization: 0.2, resetsAt: 1791730800 },
+          },
+        },
+      }],
+      result: {
+        subtype: 'success', is_error: false, num_turns: 1, session_id: 'sess-1',
+        result: 'ok', usage: {},
+      },
+    }]);
+    expect(rateLimitRuns).toEqual([null]);
   });
 
   it('classifies a schema failure as schema-invalid', async () => {

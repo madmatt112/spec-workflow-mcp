@@ -13,6 +13,7 @@ import {
 import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION, RunAbandonedError } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 import { runEvents } from '../runs.js';
+import { usageLogPath } from '../usage-log.js';
 import {
   deployRecordPath, readDeployRecord,
   type DeployRecord, type DeployStage, type DeployUnit, type UnitState,
@@ -43,7 +44,7 @@ const USAGE = {
   input_tokens: 5, output_tokens: 50, cache_read_input_tokens: 10,
   cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 20 },
 };
-interface StubRun { edits?: { path: string; content: string }[]; commands?: string[]; result: Record<string, unknown>; }
+interface StubRun { edits?: { path: string; content: string }[]; commands?: string[]; stream?: unknown[]; result: Record<string, unknown>; }
 
 function drafterRun(doc: string): StubRun {
   return {
@@ -71,6 +72,25 @@ const PROPOSALS = [
 /** The in-code implementation phase on an empty tasks document: one end-to-end verifier step. */
 function e2eRun(): StubRun {
   return {
+    result: {
+      subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'VERIFY: pass',
+      structured_output: { verify: 'pass', deferredCommand: '', findings: '', retro: 'none' }, usage: USAGE,
+    },
+  };
+}
+/** Same as `e2eRun`, but the stream emits one `rate_limit_event` first (design C2/D13). */
+function e2eRunWithRateLimit(): StubRun {
+  return {
+    stream: [{
+      type: 'rate_limit_event',
+      rate_limit_info: {
+        status: 'allowed', overageStatus: 'allowed',
+        unifiedWindows: {
+          five_hour: { utilization: 0.2, resetsAt: Math.floor(Date.now() / 1000) + 3600 },
+          seven_day: { utilization: 0.4, resetsAt: Math.floor(Date.now() / 1000) + 3600 },
+        },
+      },
+    }],
     result: {
       subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'VERIFY: pass',
       structured_output: { verify: 'pass', deferredCommand: '', findings: '', retro: 'none' }, usage: USAGE,
@@ -365,6 +385,42 @@ describe('Controller usage window', () => {
     const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
 
     await waitForStatus(id, 'done');
+  });
+});
+
+describe('Controller usage log', () => {
+  // Requirement 3 AC1, AC2; design C2/D13. Pre: a run on the default branch
+  // (merge stage no-ops), its implementation e2e-verifier step scripted to emit
+  // one rate_limit_event. Call: drive the run to the retro-plan wait. Result:
+  // `rate-limit.json` holds the event's windows (AC2, unchanged by this task)
+  // and `usage-log.jsonl` holds one line whose `run` is the run id and whose
+  // `sevenDay.utilization` is the event's (AC1). Source: design C2 line 43
+  // (`appendUsageLine({ ..., sevenDay: { utilization: w.sevenDay.utilization },
+  // run: run ?? null })`) and the stub's `five_hour`/`seven_day` utilisation
+  // values set in `e2eRunWithRateLimit` (kept under the 0.95 window threshold
+  // so the run is not parked before reaching the retro-plan wait).
+  it('attributes a rate_limit_event from the implementation step to the run in usage-log.jsonl', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [e2eRunWithRateLimit(), compileRun(), analystRun(), closeoutBatchRun()]);
+
+    controller = makeController(fx);
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.phase).toBe('retrospective');
+
+    const file = await readRateLimit();
+    expect(file?.fiveHour.utilization).toBe(0.2);
+    expect(file?.sevenDay.utilization).toBe(0.4);
+
+    const lines = readFileSync(usageLogPath(), 'utf8').trim().split('\n')
+      .map((l) => JSON.parse(l) as { run: string | null; sevenDay: { utilization: number } });
+    expect(lines).toHaveLength(1);
+    expect(lines[0].run).toBe(id);
+    expect(lines[0].sevenDay.utilization).toBe(0.4);
   });
 });
 
