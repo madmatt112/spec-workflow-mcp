@@ -21,6 +21,7 @@ Standing rules:
 - Open each test file with a contract block that gives, per success criterion, the pre-condition, the call through the seam, the observable result, and the source of the expected value.
 - Write one test per success criterion. Take every expected value from the criteria, reach the behaviour only through the `Test:` line's call, and mock no collaborator inside the module under test.
 - When the design pins numbered post-conditions for the task (a numbered budget invariant, a `C<n>`/`PC<n>` post-condition list the task implements), derive one explicit red assertion from each and name its id in the test's contract block, so every budget invariant is red before any code exists instead of surfacing only at review (retro catalogue-and-model P5).
+- For each venue or configuration constant a task introduces (a shipped currency code, venue key or threshold), write a negative assertion that pins its exact value, so a silent change of the constant fails the test instead of shipping unnoticed (retro catalogue-and-model P10).
 - Create no stub and change no path that is not a test path.
 - Run the test files and see every test fail. If a test passes on its first run, rewrite it until it fails, or report `RED-IMPOSSIBLE: <criterion>` when the current code already meets the criterion.
 - If you start a background process to capture its output — a file watcher or a `--watch` test runner — kill it as soon as you have read the result you need; never leave a background watcher running when you report (retro P8).

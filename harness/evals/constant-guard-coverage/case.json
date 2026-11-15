@@ -1,0 +1,28 @@
+{
+  "id": "constant-guard-coverage",
+  "role": "sdd-test-author",
+  "phase": "implementation",
+  "spec": "eval-constant-guard-coverage",
+  "turnCap": 100,
+  "evidence": "catalogue-and-model retro P10 (F10) — the ebay_us currency shipped with no test pinning == \"USD\" until the fix round added it",
+  "briefs": [
+    {
+      "template": "test-author",
+      "file": "author-brief.md",
+      "taskId": "1",
+      "values": {
+        "title": "Add the ebay_us venue config",
+        "job": "Spec dir: {{fixture}}/.spec-workflow/specs/eval-constant-guard-coverage. Code root: {{fixture}}. Spec store: {{fixture}}/.spec-workflow."
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed requirements, design and the task", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    { "name": "new-commit-count", "args": { "repo": ".", "count": 1 } },
+    { "name": "commit-adds-text", "args": { "repo": ".", "needles": ["ebay_us", "USD"] } }
+  ]
+}
