@@ -3,8 +3,7 @@
 // Wire shapes for the shell pages. The frontend compiles apart from the server
 // (the root tsconfig excludes src/dashboard_frontend/**), so it cannot import
 // the server's types. These are copied by hand from src/dashboard/shell/types.ts.
-// Keep them in step. PhaseRow reuses the existing harness hand copy.
-import type { PhaseRow } from '../harness/types';
+// Keep them in step.
 
 // --- Shell wire shapes copied from src/dashboard/shell/types.ts ---
 
@@ -24,31 +23,6 @@ export interface SpecBlock {
   projectId: string;
   projectName: string;
   lines: SpecLine[];
-}
-
-export interface SpecDetail {
-  order: number | null;
-  dependsOn: string | null;
-  runs: { runId: string; start: string; end: string | null; status: string | null; tokens: number }[];
-  phases: PhaseRow[];
-  deferrals: { id: string; title: string; status: string }[];
-  files: { name: string; path: string; size: number; modified: string }[];
-}
-
-// Hand copy of src/dashboard/shell/types.ts UsageSpecRow (task 11); keep in step.
-// `w`/`wUnknown` come from buildUsageReport; `wPerTask` and `pctOfBaseline` are
-// null when they cannot be computed (no usage, no tasks, no or zero baseline).
-export interface UsageSpecRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closeDate: string | null;
-  w: number | null;
-  wUnknown: number;
-  tasks: number;
-  wPerTask: number | null;
-  baseline: number | null;
-  pctOfBaseline: number | null;
 }
 
 // Hand copy of src/dashboard/shell/types.ts UsageRunLine (task 7); keep in step.

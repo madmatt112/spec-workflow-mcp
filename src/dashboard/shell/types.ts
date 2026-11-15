@@ -4,18 +4,8 @@
 // Data Models). Types only, no runtime code. The frontend keeps a hand copy in
 // src/dashboard_frontend/src/modules/shell/types.ts, because root tsc excludes
 // the frontend.
-import type { PhaseRow } from '../../watch/ledger.js';
 import type { StagedAction } from '../../advisor/actions.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
-
-export interface SpecDetail {
-  order: number | null;
-  dependsOn: string | null;
-  runs: { runId: string; start: string; end: string | null; status: string | null; tokens: number }[];
-  phases: PhaseRow[];
-  deferrals: { id: string; title: string; status: string }[];
-  files: { name: string; path: string; size: number; modified: string }[];
-}
 
 /** One Specs-block line's harness state (design.md C3, Data Models). */
 export type SpecWord = 'live' | 'closed' | 'deferred' | 'next' | 'stopped' | 'not started';
@@ -33,25 +23,6 @@ export interface SpecBlock {
   projectId: string;
   projectName: string;
   lines: SpecLine[];
-}
-
-/**
- * One Usage-page row per closed spec (design.md C9, Requirement 3). `w` and
- * `wUnknown` come from `buildUsageReport`; `wPerTask` and `pctOfBaseline` are null
- * when they cannot be computed (no usage, no tasks, no or zero baseline). The
- * frontend keeps a hand copy in src/dashboard_frontend/src/modules/shell/types.ts.
- */
-export interface UsageSpecRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closeDate: string | null;
-  w: number | null;
-  wUnknown: number;
-  tasks: number;
-  wPerTask: number | null;
-  baseline: number | null;
-  pctOfBaseline: number | null;
 }
 
 /** One live run's Usage-page line (design.md C6/C9, Data Models). */

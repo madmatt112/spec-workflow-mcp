@@ -1,91 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { buildSpecDetail, buildSpecBlock, isSpecClosed } from '../spec-rows.js';
-import type { LedgerEvent, PhaseRow } from '../../../watch/ledger.js';
+import { buildSpecBlock, isSpecClosed } from '../spec-rows.js';
+import type { PhaseRow } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
 import { DeferralStorage } from '../../../core/deferral-storage.js';
 import type { RunRecord } from '../../../controller/state.js';
 
 // Contract for src/dashboard/shell/spec-rows.ts (design.md C3/C5; task 4
-// _Prompt; Requirements 5.4, 5.5, 5.6, 1.2-1.5, 2.1-2.8).
+// _Prompt; Requirements 1.2-1.5, 2.1-2.8).
 //
-// Reached only through buildSpecDetail(project, spec) and
-// buildSpecBlock(project, liveRuns, cache?).
-
-// === buildSpecDetail — null cases (Req 5.4) ===
-//
-// Criterion "null for a spec name with a path segment, and for a missing
-//   directory" (task 4 _Prompt: "null when `spec` fails
-//   `/^[A-Za-z0-9._-]+$/` ... or is no directory under the specs directory"):
-//   Pre-condition: a project whose specs directory exists but holds none of
-//   the three names used below.
-//   Test: buildSpecDetail(project, '../x'); buildSpecDetail(project, 'a/b');
-//   buildSpecDetail(project, 'no-such-spec').
-//   Observable result: null for all three calls.
-//   Expected-value source: the quoted regex/existence rule, applied to these
-//   literal names named by the _Prompt.
-//
-// === buildSpecDetail — order and dependsOn (Req 5.4) ===
-//
-// Criterion "order is the decomposition heading number naming the spec in
-//   backticks, and dependsOn is its Depends-on paragraph with the marker
-//   removed and lines joined by one space; both null when the spec is not
-//   named" (task 4 _Prompt: "`order`: N of the `### N.` heading ... that
-//   names the spec in backticks, else null; `dependsOn`: that entry's
-//   paragraph that starts with `**Depends on**`, marker removed, lines
-//   joined with one space, else null"):
-//   Pre-condition: a decomposition.md with "### 7. `my-spec` — ..." followed
-//   by a two-line "**Depends on** ..." paragraph, and a second heading "### 8.
-//   `other-spec` — ..." with no Depends-on paragraph at all.
-//   Test: buildSpecDetail(project, 'my-spec'); buildSpecDetail(project,
-//   'other-spec').
-//   Observable result: 'my-spec' detail has order 7 and dependsOn equal to
-//   the fixture's own two lines, marker removed, joined by a single space;
-//   'other-spec' detail has order 8 and dependsOn null.
-//   Expected-value source: the fixture's own heading number and paragraph
-//   text.
-//
-// === buildSpecDetail — two runs with tokens (Req 5.4) ===
-//
-// Criterion "runs holds one row per run.start, end/status from its run.end,
-//   and tokens from buildModel's tokensTotal over only that run's rows"
-//   (task 4 _Prompt: "`runs`: one per `run.start` in file order, `end` and
-//   `status` from that run's `run.end`, `tokens` the `tokensTotal` of
-//   `buildModel` over only that run's rows"):
-//   Pre-condition: a ledger with two runs, each a run.start, one spawn.start/
-//   spawn.end pair carrying its own tokens value, and a run.end with its own
-//   status.
-//   Test: buildSpecDetail(project, spec).
-//   Observable result: detail.runs has one entry per runId with start equal
-//   to that run's run.start ts, end equal to its run.end ts, status equal to
-//   its run.end status, and tokens equal to that run's own spawn.end tokens
-//   value.
-//   Expected-value source: the fixture's own two runs' ts/status/tokens
-//   values.
-//
-// === buildSpecDetail — file paths and no content (Req 5.5, 5.6, D9) ===
-//
-// Criterion "files are top-level regular files with paths built on
-//   project.workflowRootPath, and no detail field holds file content" (task
-//   4 _Prompt: "`files`: each top-level regular file ... `path` joined on
-//   `project.workflowRootPath` plus `.spec-workflow/specs/SPEC/NAME`"; "Write
-//   the design Testing Strategy spec-rows cases: ... no detail field holds
-//   file content"):
-//   Pre-condition: a spec directory with two top-level files (one holding a
-//   unique content marker) and one subdirectory, under a project whose
-//   `workflowRootPath` is a different string from its `projectPath`.
-//   Test: buildSpecDetail(project, spec).
-//   Observable result: detail.files has exactly two entries (the
-//   subdirectory is excluded), each with `path` starting with the project's
-//   `workflowRootPath` (not its `projectPath`) and ending in
-//   `.spec-workflow/specs/SPEC/<name>`; `JSON.stringify(detail)` does not
-//   contain the unique content marker.
-//   Expected-value source: the fixture's own file names and
-//   `workflowRootPath` string, per the quoted path rule; the no-content
-//   check is the Testing Strategy's own literal requirement.
+// Reached only through buildSpecBlock(project, liveRuns, cache?).
 
 function tmpBase(): string {
   return mkdtempSync(join(tmpdir(), 'sdd-spec-rows-test-'));
@@ -110,10 +37,6 @@ function makeSpecDir(specsDir: string, spec: string): string {
   const dir = join(specsDir, spec);
   mkdirSync(dir, { recursive: true });
   return dir;
-}
-
-function writeLedger(specDir: string, events: LedgerEvent[]): void {
-  writeFileSync(join(specDir, 'harness-events.jsonl'), events.map((e) => JSON.stringify(e)).join('\n') + '\n');
 }
 
 interface PhaseLogRow { date: string; spec: string; phase: string; state: string; result: string; note: string }
@@ -146,111 +69,6 @@ function writeRetroPlan(specsDir: string, spec: string, statusLine: string): voi
     `# Retrospective plan — ${spec}\n${statusLine}\n`,
   );
 }
-
-describe('buildSpecDetail', () => {
-  let base: string;
-
-  beforeEach(() => { base = tmpBase(); });
-  afterEach(() => { rmSync(base, { recursive: true, force: true }); });
-
-  it('returns null for a spec name with a path segment, and for a missing directory', async () => {
-    const { project } = makeProject(base);
-
-    expect(await buildSpecDetail(project, '../x')).toBeNull();
-    expect(await buildSpecDetail(project, 'a/b')).toBeNull();
-    expect(await buildSpecDetail(project, 'no-such-spec')).toBeNull();
-  });
-
-  it('gives order the decomposition heading number and dependsOn the Depends-on paragraph with the marker removed and lines joined, null for a spec with no such paragraph', async () => {
-    const { project, specsDir } = makeProject(base);
-    makeSpecDir(specsDir, 'my-spec');
-    makeSpecDir(specsDir, 'other-spec');
-    const decompDir = join(project.projectPath, '.spec-workflow', 'spec-decomposition');
-    mkdirSync(decompDir, { recursive: true });
-    writeFileSync(join(decompDir, 'decomposition.md'), [
-      '### 7. `my-spec` — the test fixture spec (active)',
-      '',
-      'Some prose about the spec.',
-      '',
-      '**Depends on** spec 9 for the harness watchers, the launcher, the setup file and the run',
-      'model wiring, and on spec 6 for the pointer file and the hook events.',
-      '',
-      '### 8. `other-spec` — a spec with no dependency paragraph (active)',
-      '',
-      'Some other prose, with no Depends-on paragraph at all.',
-      '',
-    ].join('\n'));
-
-    const detail = await buildSpecDetail(project, 'my-spec');
-    expect(detail?.order).toBe(7);
-    expect(detail?.dependsOn).toBe(
-      'spec 9 for the harness watchers, the launcher, the setup file and the run model wiring, and on spec 6 for the pointer file and the hook events.',
-    );
-
-    const otherDetail = await buildSpecDetail(project, 'other-spec');
-    expect(otherDetail?.order).toBe(8);
-    expect(otherDetail?.dependsOn).toBeNull();
-  });
-
-  it('gives runs one row per run.start with end/status from its run.end and tokens from buildModel over only that run\'s rows', async () => {
-    const { project, specsDir } = makeProject(base);
-    const dir = makeSpecDir(specsDir, 'two-run-spec');
-    writeLedger(dir, [
-      { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'r1' },
-      { ts: '2026-01-01T00:01:00.000Z', type: 'spawn.start', run: 'r1', agent: 'sdd-worker' },
-      { ts: '2026-01-01T00:02:00.000Z', type: 'spawn.end', run: 'r1', agent: 'sdd-worker', result: 'approved', tokens: '100' },
-      { ts: '2026-01-01T00:03:00.000Z', type: 'run.end', run: 'r1', status: 'done' },
-      { ts: '2026-02-01T00:00:00.000Z', type: 'run.start', run: 'r2' },
-      { ts: '2026-02-01T00:01:00.000Z', type: 'spawn.start', run: 'r2', agent: 'sdd-worker2' },
-      { ts: '2026-02-01T00:02:00.000Z', type: 'spawn.end', run: 'r2', agent: 'sdd-worker2', result: 'approved', tokens: '250' },
-      { ts: '2026-02-01T00:03:00.000Z', type: 'run.end', run: 'r2', status: 'stopped' },
-    ]);
-
-    const detail = await buildSpecDetail(project, 'two-run-spec');
-    expect(detail?.runs).toHaveLength(2);
-
-    const run1 = detail?.runs.find((r) => r.runId === 'r1');
-    expect(run1?.start).toBe('2026-01-01T00:00:00.000Z');
-    expect(run1?.end).toBe('2026-01-01T00:03:00.000Z');
-    expect(run1?.status).toBe('done');
-    expect(run1?.tokens).toBe(100);
-
-    const run2 = detail?.runs.find((r) => r.runId === 'r2');
-    expect(run2?.start).toBe('2026-02-01T00:00:00.000Z');
-    expect(run2?.end).toBe('2026-02-01T00:03:00.000Z');
-    expect(run2?.status).toBe('stopped');
-    expect(run2?.tokens).toBe(250);
-  });
-
-  it('gives files top-level regular files with paths built on workflowRootPath, and no detail field holds file content', async () => {
-    const { project, specsDir } = makeProject(base);
-    const dir = makeSpecDir(specsDir, 'file-spec');
-    const marker = 'UNIQUE_CONTENT_MARKER_7f3a1c';
-    writeFileSync(join(dir, 'requirements.md'), `# Requirements\n${marker}\n`);
-    utimesSync(join(dir, 'requirements.md'), new Date('2026-03-01T00:00:00.000Z'), new Date('2026-03-01T00:00:00.000Z'));
-    writeFileSync(join(dir, 'design.md'), '# Design\n');
-    utimesSync(join(dir, 'design.md'), new Date('2026-03-02T00:00:00.000Z'), new Date('2026-03-02T00:00:00.000Z'));
-    mkdirSync(join(dir, 'subdir'));
-
-    const projectWithDifferentRoot: ProjectContext = { ...project, workflowRootPath: '/original/workspace-root' };
-
-    const detail = await buildSpecDetail(projectWithDifferentRoot, 'file-spec');
-    expect(detail?.files).toHaveLength(2);
-
-    const req = detail?.files.find((f) => f.name === 'requirements.md');
-    expect(req?.path).toBe(join('/original/workspace-root', '.spec-workflow', 'specs', 'file-spec', 'requirements.md'));
-    expect(req?.modified).toBe('2026-03-01T00:00:00.000Z');
-
-    const design = detail?.files.find((f) => f.name === 'design.md');
-    expect(design?.path).toBe(join('/original/workspace-root', '.spec-workflow', 'specs', 'file-spec', 'design.md'));
-
-    for (const f of detail?.files ?? []) {
-      expect(f.path.startsWith(project.projectPath)).toBe(false);
-    }
-
-    expect(JSON.stringify(detail)).not.toContain(marker);
-  });
-});
 
 // Contract for isSpecClosed (design.md C9/D15; task 10 _Prompt; Requirement 3
 // AC2).

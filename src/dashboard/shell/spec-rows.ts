@@ -1,17 +1,13 @@
 // src/dashboard/shell/spec-rows.ts
 //
-// The Specs page's blocks (design.md C3, Requirements 1 and 2) and one spec's
-// detail panel (design.md C5, Requirement 5). `buildSpecBlock` returns one
-// Specs block per store, one line per decomposition heading, with a
-// first-match harness-state word and fact; `buildSpecDetail` returns one
-// spec's panel data — paths, runs, phases and deferrals, but never any file
-// content (Requirement 5 AC 5, D9). Every file read goes through the task-1
-// FileCache, so a missing, empty or torn file yields a null or empty field
-// and never throws.
-import { readdirSync, statSync } from 'fs';
-import { join, basename } from 'path';
-import { buildModel, parseHandoffPhaseRows } from '../../watch/ledger.js';
-import type { LedgerEvent, PhaseRow } from '../../watch/ledger.js';
+// The Specs page's blocks (design.md C3, Requirements 1 and 2). `buildSpecBlock`
+// returns one Specs block per store, one line per decomposition heading, with a
+// first-match harness-state word and fact. Every file read goes through the
+// task-1 FileCache, so a missing, empty or torn file yields a null or empty
+// field and never throws.
+import { join } from 'path';
+import { parseHandoffPhaseRows } from '../../watch/ledger.js';
+import type { PhaseRow } from '../../watch/ledger.js';
 import { handoffPath } from '../../watch/index.js';
 import { IndexGenerator } from '../../core/index-generator.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
@@ -19,11 +15,8 @@ import type { SpecIndexEntry } from '../../types.js';
 import type { ProjectContext } from '../project-manager.js';
 import type { RunRecord } from '../../controller/state.js';
 import { decompositionHeadings, launchableSpec } from '../harness/run-setup.js';
-import type { SpecDetail, SpecWord, SpecLine, SpecBlock } from './types.js';
+import type { SpecWord, SpecLine, SpecBlock } from './types.js';
 import { FileCache } from './file-cache.js';
-
-const SPEC_NAME_RE = /^[A-Za-z0-9._-]+$/;
-const VERSION_RE = /^v\d+$/;
 
 /** Milliseconds of a date/time string; a missing or unparsable value is -Infinity. */
 function timeOf(value: string | undefined): number {
@@ -65,118 +58,6 @@ export function isSpecClosed(phaseRows: PhaseRow[], planText: string | undefined
   const closedByRow = phaseRows.some((r) => r.phase === 'closeout' && r.result === 'closed');
   const closedByPlan = (firstStatusValue(planText) ?? '').split(/\s+/)[0] === 'CLOSED';
   return closedByRow || closedByPlan;
-}
-
-/** `order` and `dependsOn` from the decomposition entry that names the spec in backticks. */
-function parseDecomposition(text: string | undefined, spec: string): { order: number | null; dependsOn: string | null } {
-  if (!text) return { order: null, dependsOn: null };
-  const lines = text.split('\n');
-  const token = '`' + spec + '`';
-  let headingIdx = -1;
-  let order: number | null = null;
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^###\s+(\d+)\.\s/);
-    if (m && lines[i].includes(token)) {
-      order = Number(m[1]);
-      headingIdx = i;
-      break;
-    }
-  }
-  if (headingIdx === -1) return { order: null, dependsOn: null };
-
-  let dependsOn: string | null = null;
-  for (let i = headingIdx + 1; i < lines.length; i++) {
-    if (/^###\s/.test(lines[i])) break;
-    if (lines[i].trimStart().startsWith('**Depends on**')) {
-      const para: string[] = [];
-      for (let j = i; j < lines.length && lines[j].trim() !== '' && !/^###\s/.test(lines[j]); j++) {
-        para.push(lines[j].trim());
-      }
-      dependsOn = para.join(' ').replace(/^\*\*Depends on\*\*\s*/, '').trim();
-      break;
-    }
-  }
-  return { order, dependsOn };
-}
-
-/** One run row per `run.start`, with end/status from its `run.end` and tokens from `buildModel` over only that run's rows. */
-function buildRuns(spec: string, ledger: LedgerEvent[]): SpecDetail['runs'] {
-  const runs: SpecDetail['runs'] = [];
-  for (const e of ledger) {
-    if (e.type !== 'run.start' || !e.run) continue;
-    const runId = e.run;
-    const rows = ledger.filter((ev) => ev.run === runId);
-    const runEnd = rows.find((ev) => ev.type === 'run.end');
-    const model = buildModel({ spec, ledger: rows, activity: [] });
-    runs.push({
-      runId,
-      start: e.ts,
-      end: runEnd?.ts ?? null,
-      status: runEnd?.status ?? null,
-      tokens: model.tokensTotal,
-    });
-  }
-  return runs;
-}
-
-/** Top-level regular files of a spec directory with `path` built on the original workflow root. */
-function listTopLevelFiles(specDir: string, workflowRootPath: string, spec: string): SpecDetail['files'] {
-  let dirents;
-  try {
-    dirents = readdirSync(specDir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const files: SpecDetail['files'] = [];
-  for (const d of dirents) {
-    if (!d.isFile()) continue;
-    let st;
-    try {
-      st = statSync(join(specDir, d.name));
-    } catch {
-      continue;
-    }
-    files.push({
-      name: d.name,
-      path: join(workflowRootPath, '.spec-workflow', 'specs', spec, d.name),
-      size: st.size,
-      modified: st.mtime.toISOString(),
-    });
-  }
-  return files;
-}
-
-/**
- * One spec's detail panel (design.md C5). Null when `spec` fails the name regex,
- * is `.`/`..`, or is no directory under the specs directory. File paths are built
- * on the original `workflowRootPath`; no file content leaves the server.
- */
-export async function buildSpecDetail(project: ProjectContext, spec: string): Promise<SpecDetail | null> {
-  if (!SPEC_NAME_RE.test(spec) || spec === '.' || spec === '..') return null;
-  const workflowRoot = join(project.projectPath, '.spec-workflow');
-  const specsDir = join(workflowRoot, 'specs');
-  const specDir = join(specsDir, spec);
-  try {
-    if (!statSync(specDir).isDirectory()) return null;
-  } catch {
-    return null;
-  }
-
-  const cache = new FileCache();
-  const decompText = cache.text(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
-  const { order, dependsOn } = parseDecomposition(decompText, spec);
-
-  const ledger = cache.jsonl<LedgerEvent>(join(specDir, 'harness-events.jsonl'));
-  const runs = buildRuns(spec, ledger);
-
-  const phases = parseHandoffPhaseRows(cache.text(handoffPath(workflowRoot)), spec);
-
-  const records = await new DeferralStorage(project.projectPath).list({ originSpec: spec });
-  const deferrals = records.map((r) => ({ id: r.id, title: r.title, status: r.status }));
-
-  const files = listTopLevelFiles(specDir, project.workflowRootPath, spec);
-
-  return { order, dependsOn, runs, phases, deferrals, files };
 }
 
 /** True when the spec directory holds a document or a ledger (design C3's stopped bullet). */
