@@ -35,6 +35,7 @@ const SEED_IDS = [
   'implementer-file-outside-list-classify',
   'implementer-fix-tests-on-list',
   'implementer-reports-amended-tests',
+  'red-impossible-criterion',
   'tdd-postcondition-coverage',
   'test-author-precommit-hook',
   'test-author-trailer',
