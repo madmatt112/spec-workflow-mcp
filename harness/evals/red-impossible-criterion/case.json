@@ -1,0 +1,43 @@
+{
+  "id": "red-impossible-criterion",
+  "role": "sdd-drafter",
+  "phase": "document",
+  "spec": "eval-red-impossible-criterion",
+  "turnCap": 80,
+  "evidence": "unrealised-pnl retro F4 — task 2's scope invariant and task 4's router-middleware 401 for GET /api/symbols/quotes were red-impossible; both red tests were written and removed because existing coverage already held",
+  "briefs": [
+    {
+      "template": "drafter",
+      "file": "drafter-brief.md",
+      "values": {
+        "phase": "tasks",
+        "docPath": "{{fixture}}/.spec-workflow/specs/eval-red-impossible-criterion/tasks.md",
+        "specDir": "{{fixture}}/.spec-workflow/specs/eval-red-impossible-criterion",
+        "specStoreRoot": "{{fixture}}/.spec-workflow",
+        "codeRoot": "{{fixture}}",
+        "carried": "none"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed requirements and design", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "task-no-test-seam",
+      "args": {
+        "doc": ".spec-workflow/specs/eval-red-impossible-criterion/tasks.md",
+        "file": "src/features/pnl/unrealised.ts"
+      }
+    },
+    {
+      "name": "task-no-test-seam",
+      "args": {
+        "doc": ".spec-workflow/specs/eval-red-impossible-criterion/tasks.md",
+        "file": "src/features/symbols/quotes.handler.ts"
+      }
+    }
+  ]
+}
